@@ -1,8 +1,8 @@
-import { redirect } from "@remix-run/react";
 import { nanoid } from "nanoid";
 
 import {
   json,
+  redirect,
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "@remix-run/cloudflare";
@@ -59,7 +59,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     context.cloudflare.env.PAGE_CONTENT.put(slug, html),
   ]);
 
-  return json({ slug });
+  return redirect(`/${slug}`);
 }
 
 export default function Index() {
@@ -79,17 +79,7 @@ export default function Index() {
             <p>{action.error}</p>
           </div>
         )}
-        {action?.slug && (
-          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md">
-            <p className="font-bold">Success</p>
-            <p>
-              Saved. Access it at{" "}
-              <Link to={`/${action.slug}`} className="font-bold text-green-800 hover:underline">
-                /{action.slug}
-              </Link>
-            </p>
-          </div>
-        )}
+
 
         {edit.slug ? (
           <EditForm edit={edit} />
