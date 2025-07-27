@@ -19,10 +19,6 @@
 	},
 	"kv_namespaces": [
 		{
-			"binding": "TO_DO_LIST",
-			"id": "cf8aa41453dc4be09ff86530895773e1"
-		},
-		{
 			"binding": "PAGE_META",
 			"id": "94ee5bbd40694177a99846857631cca4"
 		},
