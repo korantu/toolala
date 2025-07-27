@@ -1,5 +1,6 @@
 {
   "include": [
+    "app/bindings.d.ts",
     "worker-configuration.d.ts",
     "env.d.ts",
     "**/*.ts",

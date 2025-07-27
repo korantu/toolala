@@ -21,6 +21,14 @@
 		{
 			"binding": "TO_DO_LIST",
 			"id": "cf8aa41453dc4be09ff86530895773e1"
+		},
+		{
+			"binding": "PAGE_META",
+			"id": "94ee5bbd40694177a99846857631cca4"
+		},
+		{
+			"binding": "PAGE_CONTENT",
+			"id": "1f60aa3114db43cca415fb3626e16ada"
 		}
 	]
 	/**
