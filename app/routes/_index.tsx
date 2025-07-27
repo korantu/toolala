@@ -59,7 +59,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
     context.cloudflare.env.PAGE_CONTENT.put(slug, html),
   ]);
 
-  return json({ success: `Saved. Access it at /${slug}` });
+  return json({ slug });
 }
 
 export default function Index() {
@@ -79,10 +79,15 @@ export default function Index() {
             <p>{action.error}</p>
           </div>
         )}
-        {action?.success && (
+        {action?.slug && (
           <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md">
             <p className="font-bold">Success</p>
-            <p>{action.success}</p>
+            <p>
+              Saved. Access it at{" "}
+              <Link to={`/${action.slug}`} className="font-bold text-green-800 hover:underline">
+                /{action.slug}
+              </Link>
+            </p>
           </div>
         )}
 
