@@ -59,24 +59,30 @@ export async function action({ request, context }: ActionFunctionArgs) {
     context.cloudflare.env.PAGE_CONTENT.put(slug, html),
   ]);
 
-  return redirect(`/${slug}`);
+  return json({ success: true, slug });
 }
 
 export default function Index() {
   const { pages, edit } = useLoaderData<typeof loader>();
-  const action = useActionData<typeof action>();
+  const action = useActionData<{ error?: string; success?: boolean; slug?: string }>();
 
   return (
     <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
       <main className="max-w-4xl mx-auto p-4 md:p-8">
-        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight mb-8">
-          SlashEdit Dashboard
+        <h1 className="text-4xl md:text-5xl font-bold text-gray-900 tracking-tight mb-8 text-center">
+          Dashboard
         </h1>
 
         {action?.error && (
           <div className="bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-md">
             <p className="font-bold">Error</p>
             <p>{action.error}</p>
+          </div>
+        )}
+        {action?.success && (
+          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md">
+            <p className="font-bold">Success!</p>
+            <p>Page saved successfully. <a href={`/${action.slug}`} className="font-medium underline hover:text-green-800">View page →</a></p>
           </div>
         )}
 
@@ -103,22 +109,32 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
           Create New Page
         </Link>
       </div>
-      <div className="bg-white shadow-md rounded-lg overflow-hidden">
-        <ul className="divide-y divide-gray-200">
+      <div className="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
+        <ul className="divide-y divide-gray-100">
           {pages.map((page) => (
-            <li key={page.slug} className="p-4 hover:bg-gray-50 transition-colors flex items-center justify-between">
-              <div>
-                <Link to={`/${page.slug}`} className="text-lg font-medium text-blue-600 hover:underline">
-                  {page.slug}
-                </Link>
-                <p className="text-sm text-gray-500 mt-1">{page.description}</p>
-              </div>
-              <Link to={`/?edit=${page.slug}`} className="text-gray-500 hover:text-blue-600 p-2 rounded-md transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+            <li key={page.slug} className="px-4 py-2 hover:bg-gray-50 transition-colors flex items-center">
+              <a 
+                href={`/${page.slug}`} 
+                className="text-blue-600 hover:underline font-medium truncate"
+                title={page.slug}
+              >
+                /{page.slug}
+              </a>
+              {page.description && (
+                <span className="text-gray-500 ml-2 truncate">
+                  {page.description}
+                </span>
+              )}
+              <a 
+                href={`/?edit=${page.slug}`}
+                className="ml-auto flex-shrink-0 text-gray-400 hover:text-blue-600 p-1 rounded transition-colors"
+                title="Edit"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                   <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
                   <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
                 </svg>
-              </Link>
+              </a>
             </li>
           ))}
         </ul>

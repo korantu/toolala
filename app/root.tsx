@@ -10,6 +10,10 @@ import type { LinksFunction } from "@remix-run/cloudflare";
 import "./tailwind.css";
 
 export const links: LinksFunction = () => [
+  // Favicon
+  { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+  
+  // Fonts
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
   {
     rel: "preconnect",
