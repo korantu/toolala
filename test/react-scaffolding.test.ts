@@ -20,11 +20,12 @@ describe("isReactSnippet", () => {
 
 describe("buildReactDocument", () => {
   it("wraps source code with a standalone HTML document and escapes title", () => {
-    const source = "const App = () => <div>Hello</div>;";
+    const source = "import React, { useState } from 'react';\nconst App = () => <div>{useState()[0]}</div>;";
     const document = buildReactDocument(source, "Sample <Title>");
 
     expect(document.startsWith("<!DOCTYPE html>")).toBe(true);
-    expect(document).toContain(source);
+    expect(document).toContain("const useState = React.useState;");
+    expect(document).toContain("const App = () => <div>{useState()[0]}</div>;");
     expect(document).toContain("<title>Sample &lt;Title&gt;</title>");
     expect(document).toContain("<div id=\"root\"></div>");
   });
