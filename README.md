@@ -1,48 +1,47 @@
-# To-Do List App
+# SpikeMe
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/cloudflare/templates/tree/main/to-do-list-kv-template)
+SpikeMe is a lightweight content dashboard for Cloudflare Workers. It lets you author small HTML pages, store them in KV, and serve them instantly from edge routes such as `/about` or `/launch`. The root route (`/`) exposes a Remix-powered admin view where you can create, update, and preview pages without leaving the browser.
 
-![To-Do List Template Preview](https://imagedelivery.net/wSMYJvS3Xw-n339CbDyDIA/923473bc-a285-487c-93db-e0ddea3d3700/public)
-
-<!-- dash-content-start -->
-
-Manage your to-do list with [Cloudflare Workers Assets](https://developers.cloudflare.com/workers/static-assets/) + [Remix](https://remix.run/) + [Cloudflare Workers KV](https://developers.cloudflare.com/kv/).
-
-## How It Works
-
-This is a simple to-do list app that allows you to add, remove, and mark tasks as complete. The project is a Cloudflare Workers Assets application built with Remix. It uses Cloudflare Workers KV to store the to do list items. The [Remix Vite Plugin](https://remix.run/docs/en/main/guides/vite#vite) has a Cloudflare Dev Proxy that enables you to use [Bindings](https://developers.cloudflare.com/workers/runtime-apis/bindings/) provided by the Cloudflare Developer Platform.
-
-> [!IMPORTANT]
-> When using C3 to create this project, select "no" when it asks if you want to deploy. You need to follow this project's [setup steps](https://github.com/cloudflare/templates/tree/main/to-do-list-kv-template#setup-steps) before deploying.
-
-<!-- dash-content-end -->
+## Key Features
+- **Edge-hosted micro CMS:** Author raw HTML along with a short description, and persist both to Cloudflare KV (`PAGE_CONTENT` + `PAGE_META`).
+- **Instant routing:** Every saved slug becomes a public route handled by `app/routes/$slug.tsx`, returning the stored HTML with a `text/html` response.
+- **Admin dashboard:** `app/routes/_index.tsx` lists existing pages, surfaces quick links, and provides a form for editing/creating entries.
+- **Worker-first tooling:** Remix Vite dev server, Wrangler deploys, and type-safe load contexts keep the stack familiar for Cloudflare developers.
 
 ## Getting Started
-
-Outside of this repo, you can start a new project with this template using [C3](https://developers.cloudflare.com/pages/get-started/c3/) (the `create-cloudflare` CLI):
-
-```bash
-npm create cloudflare@latest -- --template=cloudflare/templates/to-do-list-kv-template
-```
-
-A live public deployment of this template is available at [https://to-do-list-kv-template.templates.workers.dev](https://to-do-list-kv-template.templates.workers.dev)
-
-## Setup Steps
-
-1. Install the project dependencies with a package manager of your choice:
+1. Install dependencies:
    ```bash
    npm install
    ```
-2. Create a [kv namespace](https://developers.cloudflare.com/kv/get-started/) with a binding named "TO_DO_LIST":
+2. Provision two KV namespaces and bind them in `wrangler.jsonc`:
    ```bash
-   npx wrangler kv namespace create TO_DO_LIST
+   npx wrangler kv namespace create PAGE_CONTENT
+   npx wrangler kv namespace create PAGE_META
    ```
-   ...and update the `kv_namespaces` -> `id` field in `wrangler.json` with the new namespace ID.
-3. Build the application:
+   Copy the generated IDs into the matching bindings.
+3. Generate Worker binding types whenever bindings change:
    ```bash
-   npm run build
+   npm run cf-typegen
    ```
-4. And deploy it!
+4. Launch the local dev server:
    ```bash
-   npx wrangler deploy
+   npm run dev
    ```
+   This runs Remix on Vite with Wrangler’s dev proxy so route loaders/actions receive Worker bindings.
+
+## Development Workflow
+- `npm run lint` / `npm run typecheck` keep ESLint and TypeScript clean before committing.
+- `npm run test` executes Vitest specs (see `test/to-do-manager.test.ts`) using Cloudflare’s worker test pool.
+- `npm run build` emits the production bundle into `build/`, which `server.ts` uses inside the worker runtime.
+- `npm run preview` rebuilds and runs a Wrangler dev session against the compiled output for staging checks.
+
+## Deployment
+Run a dry-run deploy before shipping:
+```bash
+npm run check
+```
+If it passes, push the latest KV schema notes and publish with:
+```bash
+npm run deploy
+```
+Deployments rely on the bindings defined in `wrangler.jsonc`; ensure any new namespaces or secrets are committed alongside README updates.
