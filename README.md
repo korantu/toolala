@@ -31,7 +31,7 @@ SpikeMe is a lightweight content dashboard for Cloudflare Workers. It lets you a
 
 ## Development Workflow
 - `npm run lint` / `npm run typecheck` keep ESLint and TypeScript clean before committing.
-- `npm run test` executes Vitest specs (see `test/to-do-manager.test.ts`) using Cloudflare’s worker test pool.
+- `npm run test` executes Vitest specs under `test/` using Cloudflare’s worker pool configuration.
 - `npm run build` emits the production bundle into `build/`, which `server.ts` uses inside the worker runtime.
 - `npm run preview` rebuilds and runs a Wrangler dev session against the compiled output for staging checks.
 

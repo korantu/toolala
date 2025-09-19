@@ -1,6 +1,6 @@
 {
-  "name": "to-do-list-kv-template",
-  "description": "A simple to-do list app built with Cloudflare Workers Assets and Remix.",
+  "name": "spikeme",
+  "description": "SpikeMe: a Cloudflare Workers micro CMS for authoring static HTML pages.",
   "cloudflare": {
     "label": "To-Do List App",
     "products": [

@@ -1,10 +1,10 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `app/` contains Remix route modules (`routes/_index.tsx`, `routes/$slug.tsx`), shared UI (`root.tsx`), and the KV integration in `to-do-manager.ts`.
+- `app/` contains Remix route modules (`routes/_index.tsx`, `routes/$slug.tsx`), shared UI (`root.tsx`), and entrypoints for the Worker runtime.
 - `server.ts` bootstraps the Cloudflare Worker with the Remix request handler; `load-context.ts` wires Worker bindings into Remix loaders/actions.
 - `public/` holds static assets (e.g. `favicon.svg`), and `build/` is generated output—never edit by hand.
-- Tests live in `test/` with a Vitest worker pool setup (`env.ts`, `to-do-manager.test.ts`).
+- Tests live in `test/` with a Vitest worker pool setup (`env.ts`, `*.test.ts`).
 
 ## Build, Test, and Development Commands
 - `npm run dev` launches Vite+Remix with Wrangler’s dev proxy for local iteration.
