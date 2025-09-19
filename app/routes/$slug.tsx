@@ -23,8 +23,9 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
 }
 
 export function isReactSnippet(html: string): boolean {
-  const [firstLine = ""] = html.split(/\r?\n/, 1);
-  return firstLine.includes("React");
+  const normalized = html.replace(/^\uFEFF/, ""); // drop UTF-8 BOM if present
+  const [firstLine = ""] = normalized.trimStart().split(/\r?\n/, 1);
+  return /\bReact\b/.test(firstLine);
 }
 
 export function buildReactDocument(source: string, title: string): string {

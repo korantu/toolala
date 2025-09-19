@@ -12,6 +12,10 @@ describe("isReactSnippet", () => {
     const result = isReactSnippet("<h1>Hello</h1>\nReactDOM.render(null);");
     expect(result).toBe(false);
   });
+  it("treats the first non-empty line as canonical", () => {
+    const withLeadingWhitespace = "\n\n    import React from 'react';";
+    expect(isReactSnippet(withLeadingWhitespace)).toBe(true);
+  });
 });
 
 describe("buildReactDocument", () => {
