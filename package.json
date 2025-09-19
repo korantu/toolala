@@ -2,7 +2,7 @@
   "name": "spikeme",
   "description": "SpikeMe: a Cloudflare Workers micro CMS for authoring static HTML pages.",
   "cloudflare": {
-    "label": "To-Do List App",
+    "label": "SpikeMe",
     "products": [
       "Workers",
       "KV"
