@@ -29,4 +29,15 @@ describe("buildReactDocument", () => {
     expect(document).toContain("<title>Sample &lt;Title&gt;</title>");
     expect(document).toContain("<div id=\"root\"></div>");
   });
+
+  it("removes export scaffolding and appends a ReactDOM.render call", () => {
+    const source = `export default function GrammarExercise() {\n  return <div>Hello World</div>;\n}\n\nexport { GrammarExercise };`;
+    const document = buildReactDocument(source, "React Page");
+
+    expect(document).not.toContain("export default");
+    expect(document).toContain("// Render the component");
+    expect(document).toContain(
+      "ReactDOM.render(<GrammarExercise />, document.getElementById('root'));",
+    );
+  });
 });

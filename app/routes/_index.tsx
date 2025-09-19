@@ -176,16 +176,19 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
           />
         </div>
         <div>
-          <label htmlFor="html" className="block text-sm font-bold text-gray-700 mb-1">HTML Content</label>
+          <label htmlFor="html" className="block text-sm font-bold text-gray-700 mb-1">HTML or React Content</label>
           <textarea 
             name="html" 
             id="html"
             defaultValue={edit.html} 
-            placeholder="<h1>Hello World</h1>"
+            placeholder={"<h1>Hello World</h1>\n// or start with a React snippet"}
             rows={15} 
             required 
             className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition font-mono text-sm"
           />
+          <p className="mt-2 text-xs text-gray-500">
+            Paste raw HTML or kick off with a React component (first line referencing React) and we&apos;ll scaffold the render call automatically.
+          </p>
         </div>
         <div className="flex items-center gap-4">
           <button 

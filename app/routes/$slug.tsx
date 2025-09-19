@@ -57,6 +57,8 @@ function normalizeReactSource(source: string): string {
 
   output = output.replace(/^[\t ]*import\s+ReactDOM\s+from\s+["']react-dom["'];?\s*$/gm, "");
 
+  output = ensureReactDomRender(output);
+
   output = output.replace(/\n{3,}/g, "\n\n");
 
   return output.trimStart();
@@ -73,6 +75,42 @@ function renderHookAssignments(hooks: string, namespace: "React" | "ReactDOM"): 
       return `const ${local} = ${namespace}.${name};`;
     });
   return assignments.join("\n");
+}
+
+function ensureReactDomRender(source: string): string {
+  if (/ReactDOM\.render\s*\(/.test(source)) {
+    return source;
+  }
+
+  let componentName: string | undefined;
+
+  const strip = (pattern: RegExp, replacer: (match: string, name: string) => string) => {
+    source = source.replace(pattern, (match, name) => {
+      componentName = componentName ?? name;
+      return replacer(match, name);
+    });
+  };
+
+  strip(/^[\t ]*export\s+default\s+function\s+([A-Z][A-Za-z0-9_]*)\s*\(/gm, (_match, name) => `function ${name}(`);
+  strip(/^[\t ]*export\s+function\s+([A-Z][A-Za-z0-9_]*)\s*\(/gm, (_match, name) => `function ${name}(`);
+  strip(/^[\t ]*export\s+const\s+([A-Z][A-Za-z0-9_]*)\s*=\s*/gm, (_match, name) => `const ${name} = `);
+  strip(/^[\t ]*export\s+default\s+([A-Z][A-Za-z0-9_]*)\s*;?\s*$/gm, (_match, _name) => "");
+  strip(/^[\t ]*export\s+\{\s*([A-Z][A-Za-z0-9_]*)\s*(?:as\s+[A-Z][A-Za-z0-9_]*)?\s*\}\s*;?\s*$/gm, (_match, _name) => "");
+
+  if (!componentName) {
+    const fallback = source.match(/^[\t ]*(?:const|function)\s+([A-Z][A-Za-z0-9_]*)/m);
+    if (fallback) {
+      componentName = fallback[1];
+    }
+  }
+
+  if (!componentName) {
+    return source;
+  }
+
+  const trimmed = source.trimEnd();
+  const suffix = `\n\n// Render the component\nReactDOM.render(<${componentName} />, document.getElementById('root'));`;
+  return `${trimmed}${suffix}`;
 }
 
 function deriveTitle(metaRaw: string | null, slug: string): string {
