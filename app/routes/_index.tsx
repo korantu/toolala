@@ -1,4 +1,5 @@
 import { nanoid } from "nanoid";
+import { useState } from "react";
 
 import {
   json,
@@ -98,6 +99,16 @@ export default function Index() {
 }
 
 function PagesList({ pages }: { pages: { slug: string; description: string }[] }) {
+  const [searchTerm, setSearchTerm] = useState("");
+
+  // Filter pages based on search term
+  const filteredPages = pages.filter((page) => {
+    if (!searchTerm) return true;
+    const term = searchTerm.toLowerCase();
+    return page.slug.toLowerCase().includes(term) || 
+           page.description.toLowerCase().includes(term);
+  });
+
   return (
     <section>
       <div className="flex justify-between items-center mb-6">
@@ -109,34 +120,52 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
           Create New Page
         </Link>
       </div>
+      
+      {/* Search input */}
+      <div className="mb-4">
+        <input
+          type="text"
+          placeholder="Search pages by name or description..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+        />
+      </div>
+
       <div className="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
         <ul className="divide-y divide-gray-100">
-          {pages.map((page) => (
-            <li key={page.slug} className="px-4 py-2 hover:bg-gray-50 transition-colors flex items-center">
-              <a 
-                href={`/${page.slug}`} 
-                className="text-blue-600 hover:underline font-medium truncate"
-                title={page.slug}
-              >
-                /{page.slug}
-              </a>
-              {page.description && (
-                <span className="text-gray-500 ml-2 truncate">
-                  {page.description}
-                </span>
-              )}
-              <a 
-                href={`/?edit=${page.slug}`}
-                className="ml-auto flex-shrink-0 text-gray-400 hover:text-blue-600 p-1 rounded transition-colors"
-                title="Edit"
-              >
-                <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                  <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                  <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
-                </svg>
-              </a>
+          {filteredPages.length > 0 ? (
+            filteredPages.map((page) => (
+              <li key={page.slug} className="px-4 py-2 hover:bg-gray-50 transition-colors flex items-center">
+                <a 
+                  href={`/${page.slug}`} 
+                  className="text-blue-600 hover:underline font-medium truncate"
+                  title={page.slug}
+                >
+                  /{page.slug}
+                </a>
+                {page.description && (
+                  <span className="text-gray-500 ml-2 truncate">
+                    {page.description}
+                  </span>
+                )}
+                <a 
+                  href={`/?edit=${page.slug}`}
+                  className="ml-auto flex-shrink-0 text-gray-400 hover:text-blue-600 p-1 rounded transition-colors"
+                  title="Edit"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                    <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                    <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+                  </svg>
+                </a>
+              </li>
+            ))
+          ) : (
+            <li className="px-4 py-8 text-center text-gray-500">
+              No pages found matching "{searchTerm}"
             </li>
-          ))}
+          )}
         </ul>
       </div>
     </section>
