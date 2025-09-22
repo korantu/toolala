@@ -5,42 +5,24 @@
  */
 
 import js from "@eslint/js";
-import typescript from "@typescript-eslint/eslint-plugin";
-import typescriptParser from "@typescript-eslint/parser";
 
 /** @type {import('eslint').Linter.Config[]} */
 export default [
+  js.configs.recommended,
   {
-    ignores: ["build/**/*", "node_modules/**/*", ".wrangler/**/*"],
-  },
-  {
-    files: ["**/*.{js,jsx,ts,tsx}"],
-    ...js.configs.recommended,
     languageOptions: {
       ecmaVersion: "latest",
       sourceType: "module",
-      parser: typescriptParser,
       parserOptions: {
         ecmaFeatures: {
           jsx: true,
         },
       },
       globals: {
-        browser: true,
-        node: true,
-        es2022: true,
+        window: "readonly",
+        document: "readonly",
+        console: "readonly",
       },
-    },
-    plugins: {
-      "@typescript-eslint": typescript,
-    },
-    rules: {
-      ...typescript.configs.recommended.rules,
-      "@typescript-eslint/no-explicit-any": "warn",
-      "@typescript-eslint/no-empty-interface": "off",
-      "@typescript-eslint/no-empty-object-type": "off",
-      "no-unused-vars": "off",
-      "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
     },
   },
 ];
