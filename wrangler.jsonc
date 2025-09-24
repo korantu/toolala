@@ -25,6 +25,10 @@
 		{
 			"binding": "PAGE_CONTENT",
 			"id": "1f60aa3114db43cca415fb3626e16ada"
+		},
+		{
+			"binding": "PAGE_STATE",
+			"id": "placeholder_will_be_generated"
 		}
 	]
 	/**
