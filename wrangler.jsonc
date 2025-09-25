@@ -29,6 +29,10 @@
 		{
 			"binding": "PAGE_STATE",
 			"id": "c8cc37530bc442e5a483314f1af99a61"
+		},
+		{
+			"binding": "SPIKEME",
+			"id": "placeholder_will_be_generated"
 		}
 	]
 	/**

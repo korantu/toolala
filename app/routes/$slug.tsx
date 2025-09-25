@@ -1,12 +1,28 @@
 import { type LoaderFunctionArgs } from "@remix-run/cloudflare";
+import { createStorageManager } from "../lib/storage";
 
 export async function loader({ params, context }: LoaderFunctionArgs) {
   const slug = params.slug!;
 
-  const [html, metaRaw] = await Promise.all([
-    context.cloudflare.env.PAGE_CONTENT.get(slug),
-    context.cloudflare.env.PAGE_META.get(slug),
-  ]);
+  // Use new unified storage if available, otherwise fall back to legacy
+  const useUnified = !!context.cloudflare.env.SPIKEME;
+  let html: string | null = null;
+  let metaRaw: string | null = null;
+
+  if (useUnified) {
+    const storage = createStorageManager(context.cloudflare.env);
+    const [content, meta] = await Promise.all([
+      storage.getContent(slug),
+      storage.getMeta(slug),
+    ]);
+    html = content;
+    metaRaw = meta ? JSON.stringify(meta) : null;
+  } else {
+    [html, metaRaw] = await Promise.all([
+      context.cloudflare.env.PAGE_CONTENT.get(slug),
+      context.cloudflare.env.PAGE_META.get(slug),
+    ]);
+  }
 
   if (!html) {
     throw new Response("Not found", { status: 404 });

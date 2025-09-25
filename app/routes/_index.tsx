@@ -8,38 +8,75 @@ import {
   type ActionFunctionArgs,
 } from "@remix-run/cloudflare";
 import { Form, Link, useLoaderData, useActionData } from "@remix-run/react";
+import { createStorageManager } from "../lib/storage";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const editSlug = url.searchParams.get("edit") || "";
 
-  const list = await context.cloudflare.env.PAGE_META.list({ limit: 100 });
-  const pages = list.keys.map((k) => ({
-    slug: k.name,
-    description: "", // default
-  }));
+  // Use new unified storage if available, otherwise fall back to legacy
+  const useUnified = !!context.cloudflare.env.SPIKEME;
+  let pages: { slug: string; description: string }[] = [];
 
-  // load descriptions in parallel
-  await Promise.all(
-    pages.map(async (page) => {
-      try {
-        const meta = await context.cloudflare.env.PAGE_META.get(page.slug);
-        if (meta) page.description = JSON.parse(meta).description || "";
-      } catch {}
-    })
-  );
+  if (useUnified) {
+    const storage = createStorageManager(context.cloudflare.env);
+    const slugs = await storage.listMetaSlugs(100);
+    pages = slugs.map((slug) => ({
+      slug,
+      description: "", // default
+    }));
+
+    // Load descriptions in parallel
+    await Promise.all(
+      pages.map(async (page) => {
+        try {
+          const meta = await storage.getMeta(page.slug);
+          if (meta) page.description = meta.description || "";
+        } catch {}
+      })
+    );
+  } else {
+    // Legacy implementation
+    const list = await context.cloudflare.env.PAGE_META.list({ limit: 100 });
+    pages = list.keys.map((k) => ({
+      slug: k.name,
+      description: "", // default
+    }));
+
+    // Load descriptions in parallel
+    await Promise.all(
+      pages.map(async (page) => {
+        try {
+          const meta = await context.cloudflare.env.PAGE_META.get(page.slug);
+          if (meta) page.description = JSON.parse(meta).description || "";
+        } catch {}
+      })
+    );
+  }
 
   let editData = { slug: "", html: "", description: "" };
   if (editSlug) {
-    const [html, metaRaw] = await Promise.all([
-      context.cloudflare.env.PAGE_CONTENT.get(editSlug),
-      context.cloudflare.env.PAGE_META.get(editSlug),
-    ]);
-    editData.slug = editSlug;
-    editData.html = html || "";
-    try {
-      if (metaRaw) editData.description = JSON.parse(metaRaw).description || "";
-    } catch {}
+    if (useUnified) {
+      const storage = createStorageManager(context.cloudflare.env);
+      const [html, meta] = await Promise.all([
+        storage.getContent(editSlug),
+        storage.getMeta(editSlug),
+      ]);
+      editData.slug = editSlug;
+      editData.html = html || "";
+      editData.description = meta?.description || "";
+    } else {
+      // Legacy implementation
+      const [html, metaRaw] = await Promise.all([
+        context.cloudflare.env.PAGE_CONTENT.get(editSlug),
+        context.cloudflare.env.PAGE_META.get(editSlug),
+      ]);
+      editData.slug = editSlug;
+      editData.html = html || "";
+      try {
+        if (metaRaw) editData.description = JSON.parse(metaRaw).description || "";
+      } catch {}
+    }
   }
 
   return json({ pages, edit: editData });
@@ -55,10 +92,22 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ error: "Missing slug or html" }, { status: 400 });
   }
 
-  await Promise.all([
-    context.cloudflare.env.PAGE_META.put(slug, JSON.stringify({ description })),
-    context.cloudflare.env.PAGE_CONTENT.put(slug, html),
-  ]);
+  // Use new unified storage if available, otherwise fall back to legacy
+  const useUnified = !!context.cloudflare.env.SPIKEME;
+
+  if (useUnified) {
+    const storage = createStorageManager(context.cloudflare.env);
+    await Promise.all([
+      storage.setMeta(slug, { description }),
+      storage.setContent(slug, html),
+    ]);
+  } else {
+    // Legacy implementation
+    await Promise.all([
+      context.cloudflare.env.PAGE_META.put(slug, JSON.stringify({ description })),
+      context.cloudflare.env.PAGE_CONTENT.put(slug, html),
+    ]);
+  }
 
   return json({ success: true, slug });
 }
