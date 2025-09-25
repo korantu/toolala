@@ -14,69 +14,32 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const url = new URL(request.url);
   const editSlug = url.searchParams.get("edit") || "";
 
-  // Use new unified storage if available, otherwise fall back to legacy
-  const useUnified = !!context.cloudflare.env.SPIKEME;
-  let pages: { slug: string; description: string }[] = [];
+  const storage = createStorageManager(context.cloudflare.env);
+  const slugs = await storage.listMetaSlugs(100);
+  const pages = slugs.map((slug) => ({
+    slug,
+    description: "", // default
+  }));
 
-  if (useUnified) {
-    const storage = createStorageManager(context.cloudflare.env);
-    const slugs = await storage.listMetaSlugs(100);
-    pages = slugs.map((slug) => ({
-      slug,
-      description: "", // default
-    }));
-
-    // Load descriptions in parallel
-    await Promise.all(
-      pages.map(async (page) => {
-        try {
-          const meta = await storage.getMeta(page.slug);
-          if (meta) page.description = meta.description || "";
-        } catch {}
-      })
-    );
-  } else {
-    // Legacy implementation
-    const list = await context.cloudflare.env.PAGE_META.list({ limit: 100 });
-    pages = list.keys.map((k) => ({
-      slug: k.name,
-      description: "", // default
-    }));
-
-    // Load descriptions in parallel
-    await Promise.all(
-      pages.map(async (page) => {
-        try {
-          const meta = await context.cloudflare.env.PAGE_META.get(page.slug);
-          if (meta) page.description = JSON.parse(meta).description || "";
-        } catch {}
-      })
-    );
-  }
+  // Load descriptions in parallel
+  await Promise.all(
+    pages.map(async (page) => {
+      try {
+        const meta = await storage.getMeta(page.slug);
+        if (meta) page.description = meta.description || "";
+      } catch {}
+    })
+  );
 
   let editData = { slug: "", html: "", description: "" };
   if (editSlug) {
-    if (useUnified) {
-      const storage = createStorageManager(context.cloudflare.env);
-      const [html, meta] = await Promise.all([
-        storage.getContent(editSlug),
-        storage.getMeta(editSlug),
-      ]);
-      editData.slug = editSlug;
-      editData.html = html || "";
-      editData.description = meta?.description || "";
-    } else {
-      // Legacy implementation
-      const [html, metaRaw] = await Promise.all([
-        context.cloudflare.env.PAGE_CONTENT.get(editSlug),
-        context.cloudflare.env.PAGE_META.get(editSlug),
-      ]);
-      editData.slug = editSlug;
-      editData.html = html || "";
-      try {
-        if (metaRaw) editData.description = JSON.parse(metaRaw).description || "";
-      } catch {}
-    }
+    const [html, meta] = await Promise.all([
+      storage.getContent(editSlug),
+      storage.getMeta(editSlug),
+    ]);
+    editData.slug = editSlug;
+    editData.html = html || "";
+    editData.description = meta?.description || "";
   }
 
   return json({ pages, edit: editData });
@@ -92,22 +55,11 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return json({ error: "Missing slug or html" }, { status: 400 });
   }
 
-  // Use new unified storage if available, otherwise fall back to legacy
-  const useUnified = !!context.cloudflare.env.SPIKEME;
-
-  if (useUnified) {
-    const storage = createStorageManager(context.cloudflare.env);
-    await Promise.all([
-      storage.setMeta(slug, { description }),
-      storage.setContent(slug, html),
-    ]);
-  } else {
-    // Legacy implementation
-    await Promise.all([
-      context.cloudflare.env.PAGE_META.put(slug, JSON.stringify({ description })),
-      context.cloudflare.env.PAGE_CONTENT.put(slug, html),
-    ]);
-  }
+  const storage = createStorageManager(context.cloudflare.env);
+  await Promise.all([
+    storage.setMeta(slug, { description }),
+    storage.setContent(slug, html),
+  ]);
 
   return json({ success: true, slug });
 }

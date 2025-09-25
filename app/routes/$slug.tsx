@@ -4,34 +4,20 @@ import { createStorageManager } from "../lib/storage";
 export async function loader({ params, context }: LoaderFunctionArgs) {
   const slug = params.slug!;
 
-  // Use new unified storage if available, otherwise fall back to legacy
-  const useUnified = !!context.cloudflare.env.SPIKEME;
-  let html: string | null = null;
-  let metaRaw: string | null = null;
+  const storage = createStorageManager(context.cloudflare.env);
+  const [content, meta] = await Promise.all([
+    storage.getContent(slug),
+    storage.getMeta(slug),
+  ]);
 
-  if (useUnified) {
-    const storage = createStorageManager(context.cloudflare.env);
-    const [content, meta] = await Promise.all([
-      storage.getContent(slug),
-      storage.getMeta(slug),
-    ]);
-    html = content;
-    metaRaw = meta ? JSON.stringify(meta) : null;
-  } else {
-    [html, metaRaw] = await Promise.all([
-      context.cloudflare.env.PAGE_CONTENT.get(slug),
-      context.cloudflare.env.PAGE_META.get(slug),
-    ]);
-  }
-
-  if (!html) {
+  if (!content) {
     throw new Response("Not found", { status: 404 });
   }
 
-  const title = deriveTitle(metaRaw, slug);
-  const body = isReactSnippet(html)
-    ? buildReactDocument(html, title)
-    : html;
+  const title = deriveTitle(meta ? JSON.stringify(meta) : null, slug);
+  const body = isReactSnippet(content)
+    ? buildReactDocument(content, title)
+    : content;
 
   return new Response(body, {
     headers: { "Content-Type": "text/html; charset=utf-8" },

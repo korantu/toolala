@@ -19,18 +19,6 @@
 	},
 	"kv_namespaces": [
 		{
-			"binding": "PAGE_META",
-			"id": "94ee5bbd40694177a99846857631cca4"
-		},
-		{
-			"binding": "PAGE_CONTENT",
-			"id": "1f60aa3114db43cca415fb3626e16ada"
-		},
-		{
-			"binding": "PAGE_STATE",
-			"id": "c8cc37530bc442e5a483314f1af99a61"
-		},
-		{
 			"binding": "SPIKEME",
 			"id": "d062b0b0275940cc998aea2b43342ddb"
 		}

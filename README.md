@@ -53,31 +53,25 @@ State data is stored in the unified `SPIKEME` KV namespace with the `state:` pre
 
 ## Storage Architecture
 
-SpikeMe uses a unified KV namespace approach for better organization and scalability:
+SpikeMe uses a unified KV namespace for simple and efficient data management:
 
-- **SPIKEME namespace:** Single KV namespace using key prefixes for different data types:
-  - `content:<slug>` - Page HTML content (replaces `PAGE_CONTENT`)
-  - `meta:<slug>` - Page metadata like title and description (replaces `PAGE_META`)  
-  - `state:<slug>` - Page state data for dynamic functionality (replaces `PAGE_STATE`)
+- **SPIKEME namespace**: Single KV namespace using key prefixes for different data types:
+  - `content:<slug>` - Page HTML content
+  - `meta:<slug>` - Page metadata like title and description  
+  - `state:<slug>` - Page state data for dynamic functionality
 
 This unified approach reduces complexity and allows for easy addition of new data types without creating additional namespaces.
-
-### Migration from Legacy Namespaces
-
-If upgrading from an existing installation with separate namespaces, visit `/migrate` to automatically copy all data from the legacy `PAGE_CONTENT`, `PAGE_META`, and `PAGE_STATE` namespaces to the new unified `SPIKEME` namespace with appropriate prefixes. The migration is idempotent and safe to run multiple times.
 
 ## Getting Started
 1. Install dependencies:
    ```bash
    npm install
    ```
-2. Create the unified KV namespace and bind it in `wrangler.jsonc`:
+2. Create the SPIKEME KV namespace and bind it in `wrangler.jsonc`:
    ```bash
    npx wrangler kv namespace create SPIKEME
    ```
    Add the generated ID to your `wrangler.jsonc` under the `SPIKEME` binding.
-
-   **For legacy installations:** Keep your existing `PAGE_CONTENT`, `PAGE_META`, and `PAGE_STATE` namespaces for now - they will be used for migration and as fallbacks until you migrate the data.
 3. Generate Worker binding types whenever bindings change:
    ```bash
    npm run cf-typegen
@@ -87,7 +81,7 @@ If upgrading from an existing installation with separate namespaces, visit `/mig
    npm run dev
    ```
    This runs Remix on Vite with Wrangler’s dev proxy so route loaders/actions receive Worker bindings.
-5. **Migration (if upgrading):** Visit `/migrate` in your browser to automatically migrate existing data from legacy namespaces to the new unified `SPIKEME` namespace.
+
 
 ## Development Workflow
 - `npm run lint` / `npm run typecheck` keep ESLint and TypeScript clean before committing.
