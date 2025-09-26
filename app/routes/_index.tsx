@@ -101,6 +101,7 @@ export default function Index() {
 
 function PagesList({ pages }: { pages: { slug: string; description: string }[] }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [copyStatus, setCopyStatus] = useState<{ [slug: string]: 'copying' | 'success' | 'error' | undefined }>({});
 
   // Filter pages based on search term
   const filteredPages = pages.filter((page) => {
@@ -109,6 +110,48 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
     return page.slug.toLowerCase().includes(term) || 
            page.description.toLowerCase().includes(term);
   });
+
+  // Copy page source code to clipboard
+  const copyPageSource = async (slug: string) => {
+    setCopyStatus(prev => ({ ...prev, [slug]: 'copying' }));
+    
+    try {
+      // Fetch the page content via a simple API call
+      const response = await fetch(`/${slug}/edit`);
+      if (!response.ok) {
+        throw new Error('Failed to fetch page content');
+      }
+      
+      // The edit route redirects, but we can use the loader directly
+      // Let's make a simpler approach - we'll use the existing loader with a special parameter
+      const apiResponse = await fetch(`/api/content/${slug}`);
+      if (!apiResponse.ok) {
+        throw new Error('Failed to fetch page content');
+      }
+      
+      const data = await apiResponse.json() as { content?: string };
+      const content = data.content || '';
+      
+      // Copy to clipboard
+      await navigator.clipboard.writeText(content);
+      
+      setCopyStatus(prev => ({ ...prev, [slug]: 'success' }));
+      
+      // Clear success status after 2 seconds
+      setTimeout(() => {
+        setCopyStatus(prev => ({ ...prev, [slug]: undefined }));
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Failed to copy page source:', error);
+      setCopyStatus(prev => ({ ...prev, [slug]: 'error' }));
+      
+      // Clear error status after 3 seconds
+      setTimeout(() => {
+        setCopyStatus(prev => ({ ...prev, [slug]: undefined }));
+      }, 3000);
+    }
+  };
 
   return (
     <section>
@@ -150,16 +193,56 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
                     {page.description}
                   </span>
                 )}
-                <a 
-                  href={`/?edit=${page.slug}`}
-                  className="ml-auto flex-shrink-0 text-gray-400 hover:text-blue-600 p-1 rounded transition-colors"
-                  title="Edit"
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                    <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                    <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
-                  </svg>
-                </a>
+                <div className="ml-auto flex-shrink-0 flex items-center gap-1">
+                  <button
+                    onClick={() => copyPageSource(page.slug)}
+                    disabled={copyStatus[page.slug] === 'copying'}
+                    className={`p-1 rounded transition-colors ${
+                      copyStatus[page.slug] === 'success' 
+                        ? 'text-green-600' 
+                        : copyStatus[page.slug] === 'error'
+                        ? 'text-red-600'
+                        : copyStatus[page.slug] === 'copying'
+                        ? 'text-gray-300'
+                        : 'text-gray-400 hover:text-green-600'
+                    }`}
+                    title={
+                      copyStatus[page.slug] === 'success' 
+                        ? 'Copied to clipboard!' 
+                        : copyStatus[page.slug] === 'error'
+                        ? 'Failed to copy'
+                        : copyStatus[page.slug] === 'copying'
+                        ? 'Copying...'
+                        : 'Copy source code'
+                    }
+                  >
+                    {copyStatus[page.slug] === 'copying' ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
+                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
+                        <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+                      </svg>
+                    ) : copyStatus[page.slug] === 'success' ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                      </svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
+                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
+                      </svg>
+                    )}
+                  </button>
+                  <a 
+                    href={`/?edit=${page.slug}`}
+                    className="text-gray-400 hover:text-blue-600 p-1 rounded transition-colors"
+                    title="Edit"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+                      <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
+                      <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
+                    </svg>
+                  </a>
+                </div>
               </li>
             ))
           ) : (
