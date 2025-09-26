@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 import {
   json,
@@ -61,13 +61,20 @@ export async function action({ request, context }: ActionFunctionArgs) {
     storage.setContent(slug, html),
   ]);
 
-  // Redirect to the saved page instead of showing success message
-  return redirect(`/${slug}`);
+  return json({ success: true, slug });
 }
 
 export default function Index() {
   const { pages, edit } = useLoaderData<typeof loader>();
-  const action = useActionData<{ error?: string }>();
+  const action = useActionData<{ error?: string; success?: boolean; slug?: string }>();
+
+  // Auto-redirect to the saved page after successful save
+  useEffect(() => {
+    if (action?.success && action?.slug) {
+      // Use window.location.href for full page navigation to handle raw HTML responses
+      window.location.href = `/${action.slug}`;
+    }
+  }, [action?.success, action?.slug]);
 
   return (
     <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
@@ -82,6 +89,13 @@ export default function Index() {
             <p>{action.error}</p>
           </div>
         )}
+        {action?.success && (
+          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md">
+            <p className="font-bold">Success!</p>
+            <p>Page saved successfully. Redirecting...</p>
+          </div>
+        )}
+
 
         {edit.slug ? (
           <EditForm edit={edit} />
