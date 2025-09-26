@@ -61,12 +61,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
     storage.setContent(slug, html),
   ]);
 
-  return json({ success: true, slug });
+  // Redirect to the saved page instead of showing success message
+  return redirect(`/${slug}`);
 }
 
 export default function Index() {
   const { pages, edit } = useLoaderData<typeof loader>();
-  const action = useActionData<{ error?: string; success?: boolean; slug?: string }>();
+  const action = useActionData<{ error?: string }>();
 
   return (
     <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
@@ -81,13 +82,6 @@ export default function Index() {
             <p>{action.error}</p>
           </div>
         )}
-        {action?.success && (
-          <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md">
-            <p className="font-bold">Success!</p>
-            <p>Page saved successfully. <a href={`/${action.slug}`} className="font-medium underline hover:text-green-800">View page →</a></p>
-          </div>
-        )}
-
 
         {edit.slug ? (
           <EditForm edit={edit} />
@@ -308,7 +302,7 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
             type="submit" 
             className="bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
-            Save Page
+            Save & Run ▶
           </button>
           <Link to="/" className="text-gray-600 hover:text-black font-medium">Cancel</Link>
         </div>
