@@ -79,8 +79,10 @@ describe("PWA Routes", () => {
       expect(serviceWorkerCode).toContain("addEventListener('install'");
       expect(serviceWorkerCode).toContain("addEventListener('fetch'");
       expect(serviceWorkerCode).toContain("addEventListener('activate'");
-      expect(serviceWorkerCode).toContain("cache.match(event.request)");
+      expect(serviceWorkerCode).toContain("caches.match(event.request)");
       expect(serviceWorkerCode).toContain("fetch(event.request)");
+      expect(serviceWorkerCode).toContain("self.skipWaiting()");
+      expect(serviceWorkerCode).toContain("self.clients.claim()");
     });
 
     it("returns 404 for non-existent page", async () => {
