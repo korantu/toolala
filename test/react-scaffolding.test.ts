@@ -53,4 +53,16 @@ describe("buildReactDocument", () => {
       "ReactDOM.render(<GrammarExercise />, document.getElementById('root'));",
     );
   });
+
+  it("includes PWA manifest link and service worker registration", () => {
+    const source = "import React from 'react';\nconst App = () => <div>PWA Test</div>;";
+    const document = buildReactDocument(source, "PWA Test", "test-slug");
+
+    // Check PWA manifest link
+    expect(document).toContain('<link rel="manifest" href="/test-slug/manifest.json">');
+    
+    // Check service worker registration script
+    expect(document).toContain("if ('serviceWorker' in navigator)");
+    expect(document).toContain("navigator.serviceWorker.register('/test-slug/service-worker.js')");
+  });
 });

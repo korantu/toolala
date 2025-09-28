@@ -16,7 +16,7 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
 
   const title = deriveTitle(meta ? JSON.stringify(meta) : null, slug);
   const body = isReactSnippet(content)
-    ? buildReactDocument(content, title)
+    ? buildReactDocument(content, title, slug)
     : content;
 
   return new Response(body, {
@@ -30,10 +30,21 @@ export function isReactSnippet(html: string): boolean {
   return /\bReact\b/.test(firstLine);
 }
 
-export function buildReactDocument(source: string, title: string): string {
+export function buildReactDocument(source: string, title: string, slug?: string): string {
   const escapedTitle = escapeHtml(title);
   const preparedSource = normalizeReactSource(source);
-  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="format-detection" content="telephone=no">\n  <meta name="mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-status-bar-style" content="default">\n  <meta name="theme-color" content="#ffffff">\n  <title>${escapedTitle}</title>\n  <!-- Tailwind CSS from CDN -->\n  <script src="https://cdn.tailwindcss.com"></script>\n</head>\n<body class="bg-gray-100">\n  <div id="root"></div>\n\n  <!-- React & ReactDOM from CDN -->\n  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>\n  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>\n  \n  <!-- Babel Standalone for JSX transpilation -->\n  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>\n\n  <script type="text/babel">\n${preparedSource}\n  </script>\n</body>\n</html>`;
+  
+  // PWA elements for React pages when slug is provided
+  const manifestLink = slug ? `\n  <link rel="manifest" href="/${slug}/manifest.json">` : '';
+  const serviceWorkerScript = slug ? `\n  <script>
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/${slug}/service-worker.js')
+        .then(registration => console.log('SW registered'))
+        .catch(error => console.log('SW registration failed'));
+    }
+  </script>` : '';
+  
+  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="format-detection" content="telephone=no">\n  <meta name="mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-status-bar-style" content="default">\n  <meta name="theme-color" content="#ffffff">\n  <title>${escapedTitle}</title>${manifestLink}\n  <!-- Tailwind CSS from CDN -->\n  <script src="https://cdn.tailwindcss.com"></script>${serviceWorkerScript}\n</head>\n<body class="bg-gray-100">\n  <div id="root"></div>\n\n  <!-- React & ReactDOM from CDN -->\n  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>\n  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>\n  \n  <!-- Babel Standalone for JSX transpilation -->\n  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>\n\n  <script type="text/babel">\n${preparedSource}\n  </script>\n</body>\n</html>`;
 }
 
 function normalizeReactSource(source: string): string {
