@@ -63,7 +63,7 @@ describe("PWA Routes", () => {
   });
 
   describe("service-worker.js route", () => {
-    it("returns valid service worker script with stale-while-revalidate strategy", async () => {
+    it("returns valid service worker script with network-only strategy", async () => {
       const context = { cloudflare: { env } };
       const params = { slug: testSlug };
       
@@ -73,13 +73,10 @@ describe("PWA Routes", () => {
       expect(response.headers.get("Content-Type")).toBe("application/javascript");
       expect(response.headers.get("Cache-Control")).toBe("public, max-age=0, must-revalidate");
       
-      // Check service worker contains the expected functionality
-      expect(serviceWorkerCode).toContain(`const CACHE_NAME = '${testSlug}-v1'`);
-      expect(serviceWorkerCode).toContain(`'/${testSlug}/'`);
+      // Check service worker contains the basic event listeners
       expect(serviceWorkerCode).toContain("addEventListener('install'");
       expect(serviceWorkerCode).toContain("addEventListener('fetch'");
       expect(serviceWorkerCode).toContain("addEventListener('activate'");
-      expect(serviceWorkerCode).toContain("caches.match(event.request)");
       expect(serviceWorkerCode).toContain("fetch(event.request)");
       expect(serviceWorkerCode).toContain("self.skipWaiting()");
       expect(serviceWorkerCode).toContain("self.clients.claim()");
