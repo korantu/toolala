@@ -20,6 +20,7 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
     description: description,
     start_url: `/${slug}/`,
     display: "standalone",
+    display_override: ["window-controls-overlay", "standalone"],
     background_color: "#ffffff",
     theme_color: "#ffffff",
     icons: [
