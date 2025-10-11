@@ -278,8 +278,13 @@ describe("JSON Data API - POST requests", () => {
 
   it("should reject oversized data (>1MB)", async () => {
     // Create a large object that exceeds 1MB when serialized
-    // Account for JSON overhead: {"data":""} adds ~10 bytes, so subtract that from the string
-    const largeData = { data: "x".repeat(1024 * 1024 - 8) };
+    // Start with a rough estimate, then calculate actual size needed
+    const testObject = { data: "x" };
+    const baseOverhead = new TextEncoder().encode(JSON.stringify(testObject)).length - 1; // Subtract the single "x"
+    const targetSize = 1024 * 1024 + 100; // Target: 1MB + 100 bytes to ensure we exceed limit
+    const stringLength = targetSize - baseOverhead;
+    
+    const largeData = { data: "x".repeat(stringLength) };
     const params = { "*": "" };
     const context = createMockContext(kv);
     const request = createMockRequest({
