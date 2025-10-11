@@ -39,19 +39,20 @@ function validatePath(path: string): { valid: boolean; sanitized: string; error?
     return { valid: true, sanitized: "" };
   }
 
-  // Check for directory traversal attempts
-  if (path.includes("..")) {
-    return { valid: false, sanitized: "", error: "Invalid path: directory traversal not allowed" };
+  // URL decode the path first to prevent encoded directory traversal
+  let sanitized: string;
+  try {
+    sanitized = decodeURIComponent(path);
+  } catch {
+    return { valid: false, sanitized: "", error: "Invalid path: unable to decode" };
   }
 
   // Normalize by removing leading and trailing slashes
-  let sanitized = path.replace(/^\/+/, "").replace(/\/+$/, "");
+  sanitized = sanitized.replace(/^\/+/, "").replace(/\/+$/, "");
 
-  // URL decode the path
-  try {
-    sanitized = decodeURIComponent(sanitized);
-  } catch {
-    return { valid: false, sanitized: "", error: "Invalid path: unable to decode" };
+  // Check for directory traversal attempts after decoding
+  if (sanitized.includes("..")) {
+    return { valid: false, sanitized: "", error: "Invalid path: directory traversal not allowed" };
   }
 
   return { valid: true, sanitized };

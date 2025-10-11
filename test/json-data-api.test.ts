@@ -161,6 +161,19 @@ describe("JSON Data API - GET requests", () => {
     expect(data.error).toContain("directory traversal");
   });
 
+  it("should reject URL-encoded directory traversal", async () => {
+    // Test with %2E%2E (encoded ..)
+    const params = { "*": "%2E%2E/secret" };
+    const context = createMockContext(kv);
+    const request = createMockRequest({ referer: "https://example.com" });
+
+    const response = await loader({ params, context, request } as any);
+
+    expect(response.status).toBe(400);
+    const data = await response.json() as any;
+    expect(data.error).toContain("directory traversal");
+  });
+
   it("should include CORS headers in response", async () => {
     const params = { "*": "" };
     const context = createMockContext(kv);
@@ -264,8 +277,9 @@ describe("JSON Data API - POST requests", () => {
   });
 
   it("should reject oversized data (>1MB)", async () => {
-    // Create a large object that exceeds 1MB
-    const largeData = { data: "x".repeat(1024 * 1024 + 1) };
+    // Create a large object that exceeds 1MB when serialized
+    // Account for JSON overhead: {"data":""} adds ~10 bytes, so subtract that from the string
+    const largeData = { data: "x".repeat(1024 * 1024 - 8) };
     const params = { "*": "" };
     const context = createMockContext(kv);
     const request = createMockRequest({

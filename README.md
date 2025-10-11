@@ -177,8 +177,6 @@ async function loadUserPreferences() {
 
 **Note**: Since this is a public endpoint, do not store sensitive data. Consider adding authentication for production use cases requiring security.
 
-For full API specifications, see [Issue #X](link-to-issue).
-
 ## Storage Architecture
 
 SpikeMe uses a unified KV namespace for simple and efficient data management:
