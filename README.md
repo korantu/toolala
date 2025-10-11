@@ -74,7 +74,7 @@ The `/api/v1/json_data` endpoint provides KV-backed JSON storage where data is a
 Retrieve JSON data from storage.
 
 **Response**:
-- **200 OK**: Returns `{ "data": <stored_json> }` if data exists, or `{}` if not found
+- **200 OK**: Returns the stored JSON object directly, or `{}` if not found
 - **400 Bad Request**: Invalid path (e.g., contains `..`)
 - **500 Internal Server Error**: KV read failure
 
@@ -82,8 +82,8 @@ Retrieve JSON data from storage.
 ```javascript
 // Retrieve data
 const response = await fetch('/api/v1/json_data/my/data');
-const result = await response.json();
-console.log(result.data || {}); // Stored data or empty object
+const data = await response.json();
+console.log(data || {}); // Stored data or empty object
 ```
 
 #### POST `/api/v1/json_data/{path?}`
@@ -145,8 +145,8 @@ async function saveUserPreferences() {
 
 async function loadUserPreferences() {
   const response = await fetch('/api/v1/json_data/preferences');
-  const result = await response.json();
-  return result.data || { theme: 'light', language: 'en' }; // Defaults if empty
+  const data = await response.json();
+  return Object.keys(data).length > 0 ? data : { theme: 'light', language: 'en' }; // Defaults if empty
 }
 </script>
 ```

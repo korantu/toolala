@@ -127,13 +127,13 @@ export async function loader({ params, context, request }: LoaderFunctionArgs) {
       return json({}, { status: 200, headers });
     }
 
-    // Parse and return stored data
+    // Parse and return stored data exactly as it was posted
     try {
       const data = JSON.parse(value);
-      return json({ data }, { status: 200, headers });
+      return json(data, { status: 200, headers });
     } catch {
-      // If stored value is not valid JSON, return it as-is wrapped in data
-      return json({ data: value }, { status: 200, headers });
+      // If stored value is not valid JSON, return it as a string
+      return json(value, { status: 200, headers });
     }
   } catch (error) {
     console.error("KV read failed:", error);

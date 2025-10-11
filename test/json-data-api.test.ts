@@ -81,7 +81,7 @@ describe("JSON Data API - GET requests", () => {
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toEqual({ data: testData });
+    expect(data).toEqual(testData);
   });
 
   it("should use path in key construction", async () => {
@@ -97,7 +97,7 @@ describe("JSON Data API - GET requests", () => {
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toEqual({ data: testData });
+    expect(data).toEqual(testData);
   });
 
   it("should fallback to Origin header when Referer is missing", async () => {
@@ -113,7 +113,7 @@ describe("JSON Data API - GET requests", () => {
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toEqual({ data: testData });
+    expect(data).toEqual(testData);
   });
 
   it("should use 'unknown' when both Referer and Origin are missing", async () => {
@@ -129,7 +129,7 @@ describe("JSON Data API - GET requests", () => {
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toEqual({ data: testData });
+    expect(data).toEqual(testData);
   });
 
   it("should normalize path by removing leading/trailing slashes", async () => {
@@ -145,7 +145,7 @@ describe("JSON Data API - GET requests", () => {
 
     expect(response.status).toBe(200);
     const data = await response.json();
-    expect(data).toEqual({ data: testData });
+    expect(data).toEqual(testData);
   });
 
   it("should reject path with directory traversal", async () => {
@@ -401,7 +401,7 @@ describe("JSON Data API - Integration", () => {
     expect(getResponse.status).toBe(200);
 
     const retrievedData = await getResponse.json() as any;
-    expect(retrievedData.data).toEqual(testData);
+    expect(retrievedData).toEqual(testData);
   });
 
   it("should isolate data by referrer", async () => {
@@ -433,7 +433,7 @@ describe("JSON Data API - Integration", () => {
     });
     const response1 = await loader({ params, context, request: get1 } as any);
     const retrieved1 = await response1.json() as any;
-    expect(retrieved1.data).toEqual(data1);
+    expect(retrieved1).toEqual(data1);
 
     // Retrieve from second referrer
     const get2 = createMockRequest({
@@ -442,7 +442,7 @@ describe("JSON Data API - Integration", () => {
     });
     const response2 = await loader({ params, context, request: get2 } as any);
     const retrieved2 = await response2.json() as any;
-    expect(retrieved2.data).toEqual(data2);
+    expect(retrieved2).toEqual(data2);
   });
 
   it("should isolate data by path", async () => {
@@ -471,12 +471,12 @@ describe("JSON Data API - Integration", () => {
     const get1 = createMockRequest({ referer });
     const response1 = await loader({ params: { "*": "path1" }, context, request: get1 } as any);
     const retrieved1 = await response1.json() as any;
-    expect(retrieved1.data).toEqual(dataPath1);
+    expect(retrieved1).toEqual(dataPath1);
 
     // Retrieve from path2
     const get2 = createMockRequest({ referer });
     const response2 = await loader({ params: { "*": "path2" }, context, request: get2 } as any);
     const retrieved2 = await response2.json() as any;
-    expect(retrieved2.data).toEqual(dataPath2);
+    expect(retrieved2).toEqual(dataPath2);
   });
 });
