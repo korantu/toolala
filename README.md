@@ -51,6 +51,134 @@ async function deleteData() {
 
 State data is stored in the unified `SPIKEME` KV namespace with the `state:` prefix and is isolated per page slug.
 
+## JSON Data Storage API
+
+SpikeMe provides a referrer-scoped JSON storage API that allows client-side applications to store and retrieve JSON data based on the requesting page's URL. This is ideal for client-side state persistence, caching, or simple data storage without requiring database setup.
+
+### Overview
+
+The `/api/v1/json_data` endpoint provides KV-backed JSON storage where data is automatically scoped by:
+- **Referrer URL**: Data is isolated by the `Referer` header (falls back to `Origin`, then `"unknown"`)
+- **Path**: Optional path parameter for organizing data within a referrer scope
+
+**Key Format**: `apiv1json:<referrer>:<path>`
+
+**Example Keys**:
+- From `Referer: https://example.com/page.html` with path `/user/settings` → `apiv1json:https://example.com/page.html:user/settings`
+- From `Referer: https://app.com` with no path → `apiv1json:https://app.com:`
+
+### API Endpoints
+
+#### GET `/api/v1/json_data/{path?}`
+
+Retrieve JSON data from storage.
+
+**Response**:
+- **200 OK**: Returns `{ "data": <stored_json> }` if data exists, or `{}` if not found
+- **400 Bad Request**: Invalid path (e.g., contains `..`)
+- **500 Internal Server Error**: KV read failure
+
+**Example**:
+```javascript
+// Retrieve data
+const response = await fetch('/api/v1/json_data/my/data');
+const result = await response.json();
+console.log(result.data || {}); // Stored data or empty object
+```
+
+#### POST `/api/v1/json_data/{path?}`
+
+Store JSON data to storage.
+
+**Request Body**: Valid JSON object to store
+
+**Response**:
+- **201 Created**: Returns `{ "status": "stored", "key": "<constructed_key>" }`
+- **400 Bad Request**: Invalid JSON or invalid path
+- **413 Payload Too Large**: Data exceeds 1 MB limit
+- **429 Too Many Requests**: Rate limit exceeded
+- **500 Internal Server Error**: KV write failure
+
+**Example**:
+```javascript
+// Store data
+const data = { key: 'value', nested: { data: 123 } };
+const response = await fetch('/api/v1/json_data/my/data', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify(data)
+});
+const result = await response.json();
+console.log(result); // { status: 'stored', key: 'apiv1json:...' }
+```
+
+### cURL Examples
+
+```bash
+# GET - Retrieve data (replace with actual Referer)
+curl -H "Referer: https://example.com/page.html" \
+  https://your-worker.workers.dev/api/v1/json_data/my/data
+
+# POST - Store data
+curl -X POST \
+  -H "Referer: https://example.com/page.html" \
+  -H "Content-Type: application/json" \
+  -d '{"message":"Hello World","count":42}' \
+  https://your-worker.workers.dev/api/v1/json_data/my/data
+```
+
+### Client-Side Usage
+
+```html
+<script>
+// Simple client-side storage example
+async function saveUserPreferences() {
+  const prefs = { theme: 'dark', language: 'en' };
+  const response = await fetch('/api/v1/json_data/preferences', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(prefs)
+  });
+  const result = await response.json();
+  console.log('Saved:', result.status); // 'stored'
+}
+
+async function loadUserPreferences() {
+  const response = await fetch('/api/v1/json_data/preferences');
+  const result = await response.json();
+  return result.data || { theme: 'light', language: 'en' }; // Defaults if empty
+}
+</script>
+```
+
+### Features & Limitations
+
+**Features**:
+- Automatic referrer-based scoping (data isolated by originating page)
+- Optional path segments for organizing data
+- CORS enabled for cross-origin requests
+- No authentication required (public endpoint)
+- Data persists indefinitely (no automatic TTL)
+
+**Limitations**:
+- Maximum value size: 1 MB per key
+- Maximum key size: 512 bytes
+- KV rate limits apply (check Cloudflare KV documentation)
+- Path validation: no `..` (directory traversal), leading/trailing slashes normalized
+- Data is scoped per exact referrer URL (including path and domain)
+
+### Use Cases
+
+- **Client-side caching**: Cache API responses or computed data
+- **User preferences**: Store theme, language, or UI settings
+- **Form data**: Persist form progress across sessions
+- **Simple state management**: Store application state without backend setup
+- **Cross-tab communication**: Share data between tabs from same origin
+
+**Note**: Since this is a public endpoint, do not store sensitive data. Consider adding authentication for production use cases requiring security.
+
+For full API specifications, see [Issue #X](link-to-issue).
+
 ## Storage Architecture
 
 SpikeMe uses a unified KV namespace for simple and efficient data management:
