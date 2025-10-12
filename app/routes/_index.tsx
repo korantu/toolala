@@ -266,6 +266,38 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
 
 function EditForm({ edit }: { edit: { slug: string; html: string; description: string } }) {
   const isNew = edit.slug === 'new';
+  const [pasteStatus, setPasteStatus] = useState<'idle' | 'pasting' | 'success' | 'error'>('idle');
+
+  const handlePaste = async () => {
+    setPasteStatus('pasting');
+    
+    try {
+      const text = await navigator.clipboard.readText();
+      const textarea = document.getElementById('html') as HTMLTextAreaElement;
+      if (textarea) {
+        textarea.value = text;
+        // Trigger input event so React's controlled component updates
+        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      }
+      
+      setPasteStatus('success');
+      
+      // Clear success status after 2 seconds
+      setTimeout(() => {
+        setPasteStatus('idle');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Failed to paste from clipboard:', error);
+      setPasteStatus('error');
+      
+      // Clear error status after 3 seconds
+      setTimeout(() => {
+        setPasteStatus('idle');
+      }, 3000);
+    }
+  };
+
   return (
     <section>
       <h2 className="text-2xl font-semibold mb-6">
@@ -317,6 +349,54 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
             className="bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
           >
             Save & Run ▶
+          </button>
+          <button 
+            type="button"
+            onClick={handlePaste}
+            disabled={pasteStatus === 'pasting'}
+            className={`flex items-center gap-2 font-bold py-3 px-6 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              pasteStatus === 'success' 
+                ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500' 
+                : pasteStatus === 'error'
+                ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+                : pasteStatus === 'pasting'
+                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                : 'bg-gray-600 text-white hover:bg-gray-700 focus:ring-gray-500'
+            }`}
+            title={
+              pasteStatus === 'success' 
+                ? 'Pasted from clipboard!' 
+                : pasteStatus === 'error'
+                ? 'Failed to paste - check clipboard permissions'
+                : pasteStatus === 'pasting'
+                ? 'Pasting...'
+                : 'Replace content with clipboard'
+            }
+          >
+            {pasteStatus === 'pasting' ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
+                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+                </svg>
+                Pasting...
+              </>
+            ) : pasteStatus === 'success' ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Pasted!
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
+                  <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
+                </svg>
+                Paste
+              </>
+            )}
           </button>
           <Link to="/" className="text-gray-600 hover:text-black font-medium">Cancel</Link>
         </div>
