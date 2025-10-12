@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import {
   json,
@@ -267,23 +267,36 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
 function EditForm({ edit }: { edit: { slug: string; html: string; description: string } }) {
   const isNew = edit.slug === 'new';
   const [pasteStatus, setPasteStatus] = useState<'idle' | 'pasting' | 'success' | 'error'>('idle');
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   const handlePaste = async () => {
     setPasteStatus('pasting');
     
     try {
       const text = await navigator.clipboard.readText();
-      const textarea = document.getElementById('html') as HTMLTextAreaElement;
-      if (textarea) {
-        textarea.value = text;
-        // Trigger input event so React's controlled component updates
-        textarea.dispatchEvent(new Event('input', { bubbles: true }));
+      if (textareaRef.current) {
+        textareaRef.current.value = text;
+        // Trigger input event so the form data updates
+        textareaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
       }
       
       setPasteStatus('success');
       
       // Clear success status after 2 seconds
-      setTimeout(() => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
         setPasteStatus('idle');
       }, 2000);
       
@@ -292,7 +305,10 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
       setPasteStatus('error');
       
       // Clear error status after 3 seconds
-      setTimeout(() => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = setTimeout(() => {
         setPasteStatus('idle');
       }, 3000);
     }
@@ -331,6 +347,7 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
         <div>
           <label htmlFor="html" className="block text-sm font-bold text-gray-700 mb-1">HTML or React Content</label>
           <textarea 
+            ref={textareaRef}
             name="html" 
             id="html"
             defaultValue={edit.html} 
