@@ -442,7 +442,7 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
             Paste raw HTML or kick off with a React component (first line referencing React) and we&apos;ll scaffold the render call automatically.
           </p>
         </div>
-        <div className="flex items-center gap-4">
+        <div className="flex flex-wrap items-center gap-3">
           <button 
             type="submit" 
             className="bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
@@ -453,7 +453,7 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
             type="button"
             onClick={handlePaste}
             disabled={pasteStatus === 'pasting'}
-            className={`flex items-center gap-2 font-bold py-3 px-6 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            className={`flex items-center gap-2 font-bold py-3 px-4 sm:px-6 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
               pasteStatus === 'success' 
                 ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500' 
                 : pasteStatus === 'error'
@@ -478,14 +478,16 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
                   <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
                 </svg>
-                Pasting...
+                <span className="hidden sm:inline">Pasting...</span>
+                <span className="sm:hidden">...</span>
               </>
             ) : pasteStatus === 'success' ? (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
-                Pasted!
+                <span className="hidden sm:inline">Pasted!</span>
+                <span className="sm:hidden">✓</span>
               </>
             ) : (
               <>
@@ -493,7 +495,7 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
                   <path d="M8 2a1 1 0 000 2h2a1 1 0 100-2H8z" />
                   <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
                 </svg>
-                Paste
+                <span className="hidden sm:inline">Paste</span>
               </>
             )}
           </button>
@@ -501,7 +503,7 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
             type="button"
             onClick={handleCopyInstructions}
             disabled={copyInstructionsStatus === 'copying'}
-            className={`flex items-center gap-2 font-bold py-3 px-6 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+            className={`flex items-center gap-2 font-bold py-3 px-4 sm:px-6 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
               copyInstructionsStatus === 'success' 
                 ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500' 
                 : copyInstructionsStatus === 'error'
@@ -526,14 +528,16 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
                   <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
                   <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
                 </svg>
-                Copying...
+                <span className="hidden sm:inline">Copying...</span>
+                <span className="sm:hidden">...</span>
               </>
             ) : copyInstructionsStatus === 'success' ? (
               <>
                 <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
                   <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
                 </svg>
-                Copied!
+                <span className="hidden sm:inline">Copied!</span>
+                <span className="sm:hidden">✓</span>
               </>
             ) : (
               <>
@@ -541,7 +545,8 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
                   <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
                   <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
                 </svg>
-                Copy LLM Instructions
+                <span className="hidden sm:inline">Copy LLM Instructions</span>
+                <span className="sm:hidden">LLM</span>
               </>
             )}
           </button>
