@@ -61,12 +61,12 @@ export async function action({ request, context }: ActionFunctionArgs) {
     storage.setContent(slug, html),
   ]);
 
-  return json({ success: true, slug });
+  return json({ success: true, slug, timestamp: Date.now() });
 }
 
 export default function Index() {
   const { pages, edit } = useLoaderData<typeof loader>();
-  const action = useActionData<{ error?: string; success?: boolean; slug?: string }>();
+  const action = useActionData<{ error?: string; success?: boolean; slug?: string; timestamp?: number }>();
 
   // Auto-redirect to the saved page after successful save
   useEffect(() => {
@@ -74,7 +74,7 @@ export default function Index() {
       // Use window.location.href for full page navigation to handle raw HTML responses
       window.location.href = `/${action.slug}`;
     }
-  }, [action?.success, action?.slug]);
+  }, [action?.success, action?.slug, action?.timestamp]);
 
   return (
     <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
