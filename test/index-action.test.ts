@@ -33,7 +33,7 @@ describe("Index route action", () => {
     const context = createMockContext();
 
     const response = await action({ request, context, params: {} } as any);
-    const data = await response.json();
+    const data = await response.json() as { success?: boolean; slug?: string; timestamp?: number; error?: string };
 
     expect(data.success).toBe(true);
     expect(data.slug).toBe("test-page");
@@ -47,19 +47,19 @@ describe("Index route action", () => {
     const context1 = createMockContext();
 
     const response1 = await action({ request: request1, context: context1, params: {} } as any);
-    const data1 = await response1.json();
+    const data1 = await response1.json() as { success?: boolean; slug?: string; timestamp?: number; error?: string };
 
     const formData2 = createMockFormData("test-page", "<h1>Test 2</h1>", "Test page");
     const request2 = createMockRequest(formData2);
     const context2 = createMockContext();
 
     const response2 = await action({ request: request2, context: context2, params: {} } as any);
-    const data2 = await response2.json();
+    const data2 = await response2.json() as { success?: boolean; slug?: string; timestamp?: number; error?: string };
 
     expect(data1.timestamp).toBeDefined();
     expect(data2.timestamp).toBeDefined();
     // Timestamps should be different (or equal if executed in same millisecond, but at least defined)
-    expect(data2.timestamp).toBeGreaterThanOrEqual(data1.timestamp);
+    expect(data2.timestamp).toBeGreaterThanOrEqual(data1.timestamp!);
   });
 
   it("should return error for missing slug", async () => {
@@ -68,7 +68,7 @@ describe("Index route action", () => {
     const context = createMockContext();
 
     const response = await action({ request, context, params: {} } as any);
-    const data = await response.json();
+    const data = await response.json() as { success?: boolean; slug?: string; timestamp?: number; error?: string };
 
     expect(data.error).toBeDefined();
     expect(response.status).toBe(400);
@@ -80,7 +80,7 @@ describe("Index route action", () => {
     const context = createMockContext();
 
     const response = await action({ request, context, params: {} } as any);
-    const data = await response.json();
+    const data = await response.json() as { success?: boolean; slug?: string; timestamp?: number; error?: string };
 
     expect(data.error).toBeDefined();
     expect(response.status).toBe(400);
