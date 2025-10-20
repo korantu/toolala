@@ -267,14 +267,19 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
 function EditForm({ edit }: { edit: { slug: string; html: string; description: string } }) {
   const isNew = edit.slug === 'new';
   const [pasteStatus, setPasteStatus] = useState<'idle' | 'pasting' | 'success' | 'error'>('idle');
+  const [copyInstructionsStatus, setCopyInstructionsStatus] = useState<'idle' | 'copying' | 'success' | 'error'>('idle');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const instructionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Cleanup timeout on unmount
   useEffect(() => {
     return () => {
       if (timeoutRef.current) {
         clearTimeout(timeoutRef.current);
+      }
+      if (instructionsTimeoutRef.current) {
+        clearTimeout(instructionsTimeoutRef.current);
       }
     };
   }, []);
@@ -310,6 +315,82 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
       }
       timeoutRef.current = setTimeout(() => {
         setPasteStatus('idle');
+      }, 3000);
+    }
+  };
+
+  const handleCopyInstructions = async () => {
+    setCopyInstructionsStatus('copying');
+    
+    try {
+      const instructions = `You are generating a single-file React JSX component in plain JavaScript (no TypeScript). Output only one fenced code block labeled \`jsx\`. Do not include explanations or text outside the code block.
+
+## Output Contract
+- The very first line must be:
+  import React, { useState, useEffect } from "react";
+- The very last line must be:
+  export default {{ComponentName}};
+- Use Tailwind CSS classes for styling.
+- Use JavaScript only: no \`type\`, \`interface\`, \`enum\`, generics, or \`.tsx\`.
+- All logic must be self-contained in one file. No external state, CSS, or libraries.
+- Must export a default component named \`{{ComponentName}}\`.
+
+## Functional Requirements
+- Fetch JSON from \`/api/json{{OptionalSubpath}}\` using GET on mount.
+- Handle loading, error, and empty states gracefully.
+- Support POST to \`/api/json{{OptionalSubpath}}\` to create or update data.
+- Refresh data after successful POST.
+- Show errors from the server if present.
+- Keep UX minimal, accessible, and responsive.
+
+## UI/UX
+- Use Tailwind only for styling.
+- Provide basic UI: loading spinner or text, error message, empty placeholder.
+- Add interactive controls necessary for {{Goal}}.
+- Use semantic HTML and accessible labels.
+
+## Performance & Behavior
+- Use \`fetch\` (no Axios) and async/await.
+- Debounce user input where relevant (~300ms).
+- Avoid unnecessary re-renders.
+
+## Hard Constraints
+- One fenced \`jsx\` block only — no extra text.
+- No TypeScript syntax of any kind.
+- No external dependencies beyond React.
+- No separate files or assets.
+- Do not include \`"use client"\` or framework-specific directives.
+
+## Self-check before output
+- [ ] First line is import React…
+- [ ] Last line is \`export default {{ComponentName}};\`
+- [ ] Single fenced \`jsx\` block.
+- [ ] No TypeScript anywhere.
+- [ ] Uses Tailwind.
+- [ ] JSON GET/POST logic included.`;
+      
+      await navigator.clipboard.writeText(instructions);
+      
+      setCopyInstructionsStatus('success');
+      
+      // Clear success status after 2 seconds
+      if (instructionsTimeoutRef.current) {
+        clearTimeout(instructionsTimeoutRef.current);
+      }
+      instructionsTimeoutRef.current = setTimeout(() => {
+        setCopyInstructionsStatus('idle');
+      }, 2000);
+      
+    } catch (error) {
+      console.error('Failed to copy instructions:', error);
+      setCopyInstructionsStatus('error');
+      
+      // Clear error status after 3 seconds
+      if (instructionsTimeoutRef.current) {
+        clearTimeout(instructionsTimeoutRef.current);
+      }
+      instructionsTimeoutRef.current = setTimeout(() => {
+        setCopyInstructionsStatus('idle');
       }, 3000);
     }
   };
@@ -412,6 +493,54 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
                   <path d="M3 5a2 2 0 012-2 3 3 0 003 3h2a3 3 0 003-3 2 2 0 012 2v6h-4.586l1.293-1.293a1 1 0 00-1.414-1.414l-3 3a1 1 0 000 1.414l3 3a1 1 0 001.414-1.414L10.414 13H15v3a2 2 0 01-2 2H5a2 2 0 01-2-2V5zM15 11h2a1 1 0 110 2h-2v-2z" />
                 </svg>
                 Paste
+              </>
+            )}
+          </button>
+          <button 
+            type="button"
+            onClick={handleCopyInstructions}
+            disabled={copyInstructionsStatus === 'copying'}
+            className={`flex items-center gap-2 font-bold py-3 px-6 rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 ${
+              copyInstructionsStatus === 'success' 
+                ? 'bg-green-600 text-white hover:bg-green-700 focus:ring-green-500' 
+                : copyInstructionsStatus === 'error'
+                ? 'bg-red-600 text-white hover:bg-red-700 focus:ring-red-500'
+                : copyInstructionsStatus === 'copying'
+                ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
+                : 'bg-purple-600 text-white hover:bg-purple-700 focus:ring-purple-500'
+            }`}
+            title={
+              copyInstructionsStatus === 'success' 
+                ? 'Instructions copied to clipboard!' 
+                : copyInstructionsStatus === 'error'
+                ? 'Failed to copy - check clipboard permissions'
+                : copyInstructionsStatus === 'copying'
+                ? 'Copying...'
+                : 'Copy LLM instructions for generating React components'
+            }
+          >
+            {copyInstructionsStatus === 'copying' ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 animate-spin" viewBox="0 0 24 24" fill="none">
+                  <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
+                  <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
+                </svg>
+                Copying...
+              </>
+            ) : copyInstructionsStatus === 'success' ? (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                </svg>
+                Copied!
+              </>
+            ) : (
+              <>
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+                  <path d="M9 2a2 2 0 00-2 2v8a2 2 0 002 2h6a2 2 0 002-2V6.414A2 2 0 0016.414 5L14 2.586A2 2 0 0012.586 2H9z" />
+                  <path d="M3 8a2 2 0 012-2v10h8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z" />
+                </svg>
+                Copy LLM Instructions
               </>
             )}
           </button>
