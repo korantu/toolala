@@ -264,6 +264,53 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
   );
 }
 
+// LLM instructions template for generating React JSX components
+const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX component in plain JavaScript (no TypeScript). Output only one fenced code block labeled \`jsx\`. Do not include explanations or text outside the code block.
+
+## Output Contract
+- The very first line must be:
+  import React, { useState, useEffect } from "react";
+- The very last line must be:
+  export default {{ComponentName}};
+- Use Tailwind CSS classes for styling.
+- Use JavaScript only: no \`type\`, \`interface\`, \`enum\`, generics, or \`.tsx\`.
+- All logic must be self-contained in one file. No external state, CSS, or libraries.
+- Must export a default component named \`{{ComponentName}}\`.
+
+## Functional Requirements
+- Fetch JSON from \`/api/json{{OptionalSubpath}}\` using GET on mount.
+- Handle loading, error, and empty states gracefully.
+- Support POST to \`/api/json{{OptionalSubpath}}\` to create or update data.
+- Refresh data after successful POST.
+- Show errors from the server if present.
+- Keep UX minimal, accessible, and responsive.
+
+## UI/UX
+- Use Tailwind only for styling.
+- Provide basic UI: loading spinner or text, error message, empty placeholder.
+- Add interactive controls necessary for {{Goal}}.
+- Use semantic HTML and accessible labels.
+
+## Performance & Behavior
+- Use \`fetch\` (no Axios) and async/await.
+- Debounce user input where relevant (~300ms).
+- Avoid unnecessary re-renders.
+
+## Hard Constraints
+- One fenced \`jsx\` block only — no extra text.
+- No TypeScript syntax of any kind.
+- No external dependencies beyond React.
+- No separate files or assets.
+- Do not include \`"use client"\` or framework-specific directives.
+
+## Self-check before output
+- [ ] First line is import React…
+- [ ] Last line is \`export default {{ComponentName}};\`
+- [ ] Single fenced \`jsx\` block.
+- [ ] No TypeScript anywhere.
+- [ ] Uses Tailwind.
+- [ ] JSON GET/POST logic included.`;
+
 function EditForm({ edit }: { edit: { slug: string; html: string; description: string } }) {
   const isNew = edit.slug === 'new';
   const [pasteStatus, setPasteStatus] = useState<'idle' | 'pasting' | 'success' | 'error'>('idle');
@@ -323,53 +370,7 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
     setCopyInstructionsStatus('copying');
     
     try {
-      const instructions = `You are generating a single-file React JSX component in plain JavaScript (no TypeScript). Output only one fenced code block labeled \`jsx\`. Do not include explanations or text outside the code block.
-
-## Output Contract
-- The very first line must be:
-  import React, { useState, useEffect } from "react";
-- The very last line must be:
-  export default {{ComponentName}};
-- Use Tailwind CSS classes for styling.
-- Use JavaScript only: no \`type\`, \`interface\`, \`enum\`, generics, or \`.tsx\`.
-- All logic must be self-contained in one file. No external state, CSS, or libraries.
-- Must export a default component named \`{{ComponentName}}\`.
-
-## Functional Requirements
-- Fetch JSON from \`/api/json{{OptionalSubpath}}\` using GET on mount.
-- Handle loading, error, and empty states gracefully.
-- Support POST to \`/api/json{{OptionalSubpath}}\` to create or update data.
-- Refresh data after successful POST.
-- Show errors from the server if present.
-- Keep UX minimal, accessible, and responsive.
-
-## UI/UX
-- Use Tailwind only for styling.
-- Provide basic UI: loading spinner or text, error message, empty placeholder.
-- Add interactive controls necessary for {{Goal}}.
-- Use semantic HTML and accessible labels.
-
-## Performance & Behavior
-- Use \`fetch\` (no Axios) and async/await.
-- Debounce user input where relevant (~300ms).
-- Avoid unnecessary re-renders.
-
-## Hard Constraints
-- One fenced \`jsx\` block only — no extra text.
-- No TypeScript syntax of any kind.
-- No external dependencies beyond React.
-- No separate files or assets.
-- Do not include \`"use client"\` or framework-specific directives.
-
-## Self-check before output
-- [ ] First line is import React…
-- [ ] Last line is \`export default {{ComponentName}};\`
-- [ ] Single fenced \`jsx\` block.
-- [ ] No TypeScript anywhere.
-- [ ] Uses Tailwind.
-- [ ] JSON GET/POST logic included.`;
-      
-      await navigator.clipboard.writeText(instructions);
+      await navigator.clipboard.writeText(LLM_INSTRUCTIONS_TEMPLATE);
       
       setCopyInstructionsStatus('success');
       
