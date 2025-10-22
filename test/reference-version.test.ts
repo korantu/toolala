@@ -47,7 +47,7 @@ describe("Reference version functionality", () => {
     } as any;
 
     const response = await action({ request, context, params: {} } as any);
-    const data = await response.json();
+    const data = await response.json() as any;
 
     expect(data.success).toBe(true);
     expect(data.message).toBe("Reference version saved!");
@@ -72,7 +72,7 @@ describe("Reference version functionality", () => {
     } as any;
 
     const response = await action({ request, context, params: {} } as any);
-    const data = await response.json();
+    const data = await response.json() as any;
 
     expect(data.success).toBe(true);
     expect(data.message).toBe("Restored from reference!");
@@ -96,7 +96,7 @@ describe("Reference version functionality", () => {
     } as any;
 
     const response = await action({ request, context, params: {} } as any);
-    const data = await response.json();
+    const data = await response.json() as any;
 
     expect(response.status).toBe(404);
     expect(data.error).toBe("No reference version found");
