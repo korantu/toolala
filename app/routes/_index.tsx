@@ -31,15 +31,17 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     })
   );
 
-  let editData = { slug: "", html: "", description: "" };
+  let editData = { slug: "", html: "", description: "", hasReference: false };
   if (editSlug) {
-    const [html, meta] = await Promise.all([
+    const [html, meta, refHtml] = await Promise.all([
       storage.getContent(editSlug),
       storage.getMeta(editSlug),
+      storage.getRefContent(editSlug),
     ]);
     editData.slug = editSlug;
     editData.html = html || "";
     editData.description = meta?.description || "";
+    editData.hasReference = !!refHtml;
   }
 
   return json({ pages, edit: editData });
@@ -47,6 +49,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
 
 export async function action({ request, context }: ActionFunctionArgs) {
   const formData = await request.formData();
+  const actionType = formData.get("actionType") as string || "save";
   const slug = (formData.get("slug") as string || "").trim().replace(/[^a-z0-9\-_]/gi, "");
   const html = formData.get("html") as string;
   const description = (formData.get("description") as string || "").trim();
@@ -56,25 +59,52 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   const storage = createStorageManager(context.cloudflare.env);
-  await Promise.all([
-    storage.setMeta(slug, { description }),
-    storage.setContent(slug, html),
-  ]);
 
-  return json({ success: true, slug, timestamp: Date.now() });
+  if (actionType === "saveReference") {
+    // Save current content as reference
+    await storage.setRefContent(slug, html);
+    return json({ success: true, slug, message: "Reference version saved!", timestamp: Date.now() });
+  } else if (actionType === "restoreReference") {
+    // Restore content from reference
+    const refHtml = await storage.getRefContent(slug);
+    if (!refHtml) {
+      return json({ error: "No reference version found" }, { status: 404 });
+    }
+    return json({ 
+      success: true, 
+      slug, 
+      message: "Restored from reference!", 
+      restoredContent: refHtml,
+      timestamp: Date.now() 
+    });
+  } else {
+    // Default save action
+    await Promise.all([
+      storage.setMeta(slug, { description }),
+      storage.setContent(slug, html),
+    ]);
+    return json({ success: true, slug, timestamp: Date.now() });
+  }
 }
 
 export default function Index() {
   const { pages, edit } = useLoaderData<typeof loader>();
-  const action = useActionData<{ error?: string; success?: boolean; slug?: string; timestamp?: number }>();
+  const action = useActionData<{ 
+    error?: string; 
+    success?: boolean; 
+    slug?: string; 
+    message?: string;
+    restoredContent?: string;
+    timestamp?: number;
+  }>();
 
-  // Auto-redirect to the saved page after successful save
+  // Auto-redirect to the saved page after successful save (but not for reference operations)
   useEffect(() => {
-    if (action?.success && action?.slug) {
+    if (action?.success && action?.slug && !action?.message) {
       // Use window.location.href for full page navigation to handle raw HTML responses
       window.location.href = `/${action.slug}`;
     }
-  }, [action?.success, action?.slug, action?.timestamp]);
+  }, [action?.success, action?.slug, action?.timestamp, action?.message]);
 
   return (
     <div className="bg-gray-50 min-h-screen font-sans text-gray-800">
@@ -92,13 +122,13 @@ export default function Index() {
         {action?.success && (
           <div className="bg-green-100 border-l-4 border-green-500 text-green-700 p-4 mb-6 rounded-md">
             <p className="font-bold">Success!</p>
-            <p>Page saved successfully. Redirecting...</p>
+            <p>{action.message || "Page saved successfully. Redirecting..."}</p>
           </div>
         )}
 
 
         {edit.slug ? (
-          <EditForm edit={edit} />
+          <EditForm edit={edit} action={action} />
         ) : (
           <PagesList pages={pages} />
         )}
@@ -311,13 +341,35 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
 - [ ] Uses Tailwind.
 - [ ] JSON GET/POST logic included.`;
 
-function EditForm({ edit }: { edit: { slug: string; html: string; description: string } }) {
+function EditForm({ 
+  edit, 
+  action 
+}: { 
+  edit: { slug: string; html: string; description: string; hasReference: boolean };
+  action?: { 
+    error?: string; 
+    success?: boolean; 
+    slug?: string; 
+    message?: string;
+    restoredContent?: string;
+    timestamp?: number;
+  };
+}) {
   const isNew = edit.slug === 'new';
   const [pasteStatus, setPasteStatus] = useState<'idle' | 'pasting' | 'success' | 'error'>('idle');
   const [copyInstructionsStatus, setCopyInstructionsStatus] = useState<'idle' | 'copying' | 'success' | 'error'>('idle');
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
   const instructionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Restore content when restored from reference
+  useEffect(() => {
+    if (action?.restoredContent && textareaRef.current) {
+      textareaRef.current.value = action.restoredContent;
+      // Trigger input event so the form data updates
+      textareaRef.current.dispatchEvent(new Event('input', { bubbles: true }));
+    }
+  }, [action?.restoredContent, action?.timestamp]);
 
   // Cleanup timeout on unmount
   useEffect(() => {
@@ -427,8 +479,15 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
           />
         </div>
         <div>
-          <label htmlFor="html" className="block text-sm font-bold text-gray-700 mb-1">HTML or React Content</label>
-          <textarea 
+          <div className="flex items-center justify-between mb-1">
+            <label htmlFor="html" className="block text-sm font-bold text-gray-700">HTML or React Content</label>
+            {edit.hasReference && !isNew && (
+              <span className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md border border-green-300">
+                ✓ Reference version saved
+              </span>
+            )}
+          </div>
+          <textarea
             ref={textareaRef}
             name="html" 
             id="html"
@@ -449,7 +508,31 @@ function EditForm({ edit }: { edit: { slug: string; html: string; description: s
           >
             Save & Run ▶
           </button>
-          <button 
+          {!isNew && (
+            <>
+              <button 
+                type="submit"
+                name="actionType"
+                value="saveReference"
+                className="bg-green-600 text-white font-bold py-3 px-6 rounded-md hover:bg-green-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+                title="Save the current version as a reference point"
+              >
+                💾 Save as Reference
+              </button>
+              {edit.hasReference && (
+                <button 
+                  type="submit"
+                  name="actionType"
+                  value="restoreReference"
+                  className="bg-yellow-600 text-white font-bold py-3 px-6 rounded-md hover:bg-yellow-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-yellow-500"
+                  title="Restore content from the saved reference version"
+                >
+                  ⏮ Restore from Reference
+                </button>
+              )}
+            </>
+          )}
+          <button
             type="button"
             onClick={handlePaste}
             disabled={pasteStatus === 'pasting'}

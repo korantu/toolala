@@ -10,6 +10,11 @@ export interface StorageManager {
   setContent(slug: string, html: string): Promise<void>;
   deleteContent(slug: string): Promise<void>;
 
+  // Reference content operations (for saving reference versions)
+  getRefContent(slug: string): Promise<string | null>;
+  setRefContent(slug: string, html: string): Promise<void>;
+  deleteRefContent(slug: string): Promise<void>;
+
   // Meta operations (replaces PAGE_META)
   getMeta(slug: string): Promise<{ description?: string; title?: string } | null>;
   setMeta(slug: string, meta: { description?: string; title?: string }): Promise<void>;
@@ -40,6 +45,19 @@ export class UnifiedStorageManager implements StorageManager {
 
   async deleteContent(slug: string): Promise<void> {
     await this.kv.delete(`content:${slug}`);
+  }
+
+  // Reference content operations with "ref:" prefix
+  async getRefContent(slug: string): Promise<string | null> {
+    return await this.kv.get(`ref:${slug}`);
+  }
+
+  async setRefContent(slug: string, html: string): Promise<void> {
+    await this.kv.put(`ref:${slug}`, html);
+  }
+
+  async deleteRefContent(slug: string): Promise<void> {
+    await this.kv.delete(`ref:${slug}`);
   }
 
   // Meta operations with "meta:" prefix
