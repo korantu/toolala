@@ -14,6 +14,11 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
     throw new Response("Not found", { status: 404 });
   }
 
+  // Track page access asynchronously (don't await to avoid slowing down page load)
+  context.cloudflare.ctx.waitUntil(
+    storage.setAccessTimestamp(slug, Date.now())
+  );
+
   const title = deriveTitle(meta ? JSON.stringify(meta) : null, slug);
   const body = isReactSnippet(content)
     ? buildReactDocument(content, title, slug)

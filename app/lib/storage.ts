@@ -25,10 +25,16 @@ export interface StorageManager {
   setState(slug: string, data: any): Promise<void>;
   deleteState(slug: string): Promise<void>;
 
+  // Access tracking operations
+  getAccessTimestamp(slug: string): Promise<number | null>;
+  setAccessTimestamp(slug: string, timestamp: number): Promise<void>;
+  deleteAccessTimestamp(slug: string): Promise<void>;
+
   // List operations
   listContentSlugs(limit?: number): Promise<string[]>;
   listMetaSlugs(limit?: number): Promise<string[]>;
   listStateSlugs(limit?: number): Promise<string[]>;
+  listAccessTimestamps(limit?: number): Promise<Array<{ slug: string; timestamp: number }>>;
 }
 
 export class UnifiedStorageManager implements StorageManager {
@@ -102,6 +108,24 @@ export class UnifiedStorageManager implements StorageManager {
     await this.kv.delete(`state:${slug}`);
   }
 
+  // Access tracking operations with "accessedts:" prefix
+  async getAccessTimestamp(slug: string): Promise<number | null> {
+    const data = await this.kv.get(`accessedts:${slug}`);
+    if (!data) {
+      return null;
+    }
+    const timestamp = Number(data);
+    return isNaN(timestamp) ? null : timestamp;
+  }
+
+  async setAccessTimestamp(slug: string, timestamp: number): Promise<void> {
+    await this.kv.put(`accessedts:${slug}`, timestamp.toString());
+  }
+
+  async deleteAccessTimestamp(slug: string): Promise<void> {
+    await this.kv.delete(`accessedts:${slug}`);
+  }
+
   // List operations
   async listContentSlugs(limit = 100): Promise<string[]> {
     const list = await this.kv.list({ prefix: "content:", limit });
@@ -116,6 +140,21 @@ export class UnifiedStorageManager implements StorageManager {
   async listStateSlugs(limit = 100): Promise<string[]> {
     const list = await this.kv.list({ prefix: "state:", limit });
     return list.keys.map(k => k.name.replace(/^state:/, ""));
+  }
+
+  async listAccessTimestamps(limit = 100): Promise<Array<{ slug: string; timestamp: number }>> {
+    const list = await this.kv.list({ prefix: "accessedts:", limit });
+    const results: Array<{ slug: string; timestamp: number }> = [];
+    
+    for (const key of list.keys) {
+      const slug = key.name.replace(/^accessedts:/, "");
+      const timestamp = await this.getAccessTimestamp(slug);
+      if (timestamp !== null) {
+        results.push({ slug, timestamp });
+      }
+    }
+    
+    return results;
   }
 }
 

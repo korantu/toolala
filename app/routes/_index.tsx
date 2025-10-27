@@ -19,14 +19,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const pages = slugs.map((slug) => ({
     slug,
     description: "", // default
+    accessTimestamp: null as number | null,
   }));
 
-  // Load descriptions in parallel
+  // Load descriptions and access timestamps in parallel
   await Promise.all(
     pages.map(async (page) => {
       try {
-        const meta = await storage.getMeta(page.slug);
+        const [meta, accessTimestamp] = await Promise.all([
+          storage.getMeta(page.slug),
+          storage.getAccessTimestamp(page.slug),
+        ]);
         if (meta) page.description = meta.description || "";
+        page.accessTimestamp = accessTimestamp;
       } catch {}
     })
   );
@@ -137,8 +142,9 @@ export default function Index() {
   );
 }
 
-function PagesList({ pages }: { pages: { slug: string; description: string }[] }) {
+function PagesList({ pages }: { pages: { slug: string; description: string; accessTimestamp: number | null }[] }) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "recent">("name");
   const [copyStatus, setCopyStatus] = useState<{ [slug: string]: 'copying' | 'success' | 'error' | undefined }>({});
 
   // Filter pages based on search term
@@ -147,6 +153,21 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
     const term = searchTerm.toLowerCase();
     return page.slug.toLowerCase().includes(term) || 
            page.description.toLowerCase().includes(term);
+  });
+
+  // Sort pages based on selected sort option
+  const sortedPages = [...filteredPages].sort((a, b) => {
+    if (sortBy === "recent") {
+      // Sort by most recently accessed (descending)
+      // Pages without access timestamp go to the end
+      if (a.accessTimestamp === null && b.accessTimestamp === null) return 0;
+      if (a.accessTimestamp === null) return 1;
+      if (b.accessTimestamp === null) return -1;
+      return b.accessTimestamp - a.accessTimestamp;
+    } else {
+      // Sort by name (ascending)
+      return a.slug.localeCompare(b.slug);
+    }
   });
 
   // Copy page source code to clipboard
@@ -203,21 +224,29 @@ function PagesList({ pages }: { pages: { slug: string; description: string }[] }
         </Link>
       </div>
       
-      {/* Search input */}
-      <div className="mb-4">
+      {/* Search and Sort controls */}
+      <div className="mb-4 flex gap-3">
         <input
           type="text"
           placeholder="Search pages by name or description..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
+          className="flex-1 p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
         />
+        <select
+          value={sortBy}
+          onChange={(e) => setSortBy(e.target.value as "name" | "recent")}
+          className="p-3 border border-gray-300 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition bg-white"
+        >
+          <option value="name">Sort by Name</option>
+          <option value="recent">Sort by Recent Access</option>
+        </select>
       </div>
 
       <div className="bg-white shadow-sm rounded-lg overflow-hidden border border-gray-200">
         <ul className="divide-y divide-gray-100">
-          {filteredPages.length > 0 ? (
-            filteredPages.map((page) => (
+          {sortedPages.length > 0 ? (
+            sortedPages.map((page) => (
               <li key={page.slug} className="px-4 py-2 hover:bg-gray-50 transition-colors flex items-center">
                 <a 
                   href={`/${page.slug}`} 
