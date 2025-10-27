@@ -144,17 +144,18 @@ export class UnifiedStorageManager implements StorageManager {
 
   async listAccessTimestamps(limit = 100): Promise<Array<{ slug: string; timestamp: number }>> {
     const list = await this.kv.list({ prefix: "accessedts:", limit });
-    const results: Array<{ slug: string; timestamp: number }> = [];
     
-    for (const key of list.keys) {
+    // Fetch all timestamps concurrently
+    const timestampPromises = list.keys.map(async (key) => {
       const slug = key.name.replace(/^accessedts:/, "");
       const timestamp = await this.getAccessTimestamp(slug);
-      if (timestamp !== null) {
-        results.push({ slug, timestamp });
-      }
-    }
+      return timestamp !== null ? { slug, timestamp } : null;
+    });
     
-    return results;
+    const results = await Promise.all(timestampPromises);
+    
+    // Filter out null values (invalid timestamps)
+    return results.filter((result): result is { slug: string; timestamp: number } => result !== null);
   }
 }
 
