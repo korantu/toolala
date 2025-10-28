@@ -40,7 +40,7 @@ describe("buildReactDocument", () => {
     expect(document).toContain('<meta name="mobile-web-app-capable" content="yes">');
     expect(document).toContain('<meta name="apple-mobile-web-app-capable" content="yes">');
     expect(document).toContain('<meta name="apple-mobile-web-app-status-bar-style" content="default">');
-    expect(document).toContain('<meta name="theme-color" content="#ffffff">');
+    expect(document).toContain('<meta name="theme-color" content="#111827">');
   });
 
   it("removes export scaffolding and appends a ReactDOM.render call", () => {
