@@ -330,7 +330,7 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
 - The very first line must be:
   import React, { useState, useEffect } from "react";
 - The very last line must be:
-  export default {{ComponentName}};
+  export default ComponentName;
 - Use Tailwind CSS classes for styling.
 - Use JavaScript only: no \`type\`, \`interface\`, \`enum\`, generics, or \`.tsx\`.
 - All logic must be self-contained in one file. No external state, CSS, or libraries.
@@ -364,7 +364,7 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
 
 ## Self-check before output
 - [ ] First line is import React…
-- [ ] Last line is \`export default {{ComponentName}};\`
+- [ ] Last line is \`export default ComponentName;\`
 - [ ] Single fenced \`jsx\` block.
 - [ ] No TypeScript anywhere.
 - [ ] Uses Tailwind.
@@ -668,3 +668,4 @@ function EditForm({
     </section>
   );
 }
+
