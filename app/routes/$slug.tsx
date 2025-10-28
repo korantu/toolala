@@ -22,11 +22,67 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
   const title = deriveTitle(meta ? JSON.stringify(meta) : null, slug);
   const body = isReactSnippet(content)
     ? buildReactDocument(content, title, slug)
-    : content;
+    : wrapHtmlWithDarkTheme(content, title);
 
   return new Response(body, {
     headers: { "Content-Type": "text/html; charset=utf-8" },
   });
+}
+
+function wrapHtmlWithDarkTheme(html: string, title: string): string {
+  // Check if the HTML already has <!DOCTYPE html> or <html> tags
+  const hasFullDocument = /<!DOCTYPE\s+html|<html[\s>]/i.test(html);
+  
+  if (hasFullDocument) {
+    // If it's a full document, inject dark theme styles into the head
+    let modifiedHtml = html;
+    
+    // Try to inject into <head> if it exists
+    if (/<head[\s>]/i.test(modifiedHtml)) {
+      modifiedHtml = modifiedHtml.replace(
+        /(<head[^>]*>)/i,
+        `$1\n  <style>body { background-color: #111827; color: #f3f4f6; } a { color: #60a5fa; }</style>`
+      );
+    } else {
+      // No head tag, try to add after <html>
+      modifiedHtml = modifiedHtml.replace(
+        /(<html[^>]*>)/i,
+        `$1\n<head>\n  <style>body { background-color: #111827; color: #f3f4f6; } a { color: #60a5fa; }</style>\n</head>`
+      );
+    }
+    
+    return modifiedHtml;
+  } else {
+    // It's a fragment, wrap it with a full HTML document
+    const escapedTitle = escapeHtml(title);
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+  <title>${escapedTitle}</title>
+  <style>
+    body {
+      background-color: #111827;
+      color: #f3f4f6;
+      font-family: system-ui, -apple-system, sans-serif;
+      padding: 1rem;
+      line-height: 1.6;
+    }
+    a {
+      color: #60a5fa;
+    }
+    a:hover {
+      color: #93c5fd;
+    }
+  </style>
+</head>
+<body>
+${html}
+</body>
+</html>`;
+  }
 }
 
 export function isReactSnippet(html: string): boolean {
@@ -49,7 +105,7 @@ export function buildReactDocument(source: string, title: string, slug?: string)
     }
   </script>` : '';
   
-  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="format-detection" content="telephone=no">\n  <meta name="mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-status-bar-style" content="default">\n  <meta name="theme-color" content="#ffffff">\n  <title>${escapedTitle}</title>${manifestLink}\n  <!-- Tailwind CSS from CDN -->\n  <script src="https://cdn.tailwindcss.com"></script>${serviceWorkerScript}\n</head>\n<body class="bg-gray-100">\n  <div id="root"></div>\n\n  <!-- React & ReactDOM from CDN -->\n  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>\n  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>\n  \n  <!-- Babel Standalone for JSX transpilation -->\n  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>\n\n  <script type="text/babel">\n${preparedSource}\n  </script>\n</body>\n</html>`;
+  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="format-detection" content="telephone=no">\n  <meta name="mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-status-bar-style" content="default">\n  <meta name="theme-color" content="#111827">\n  <title>${escapedTitle}</title>${manifestLink}\n  <!-- Tailwind CSS from CDN -->\n  <script src="https://cdn.tailwindcss.com"></script>${serviceWorkerScript}\n</head>\n<body class="bg-gray-900 text-gray-100">\n  <div id="root"></div>\n\n  <!-- React & ReactDOM from CDN -->\n  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>\n  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>\n  \n  <!-- Babel Standalone for JSX transpilation -->\n  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>\n\n  <script type="text/babel">\n${preparedSource}\n  </script>\n</body>\n</html>`;
 }
 
 function normalizeReactSource(source: string): string {
