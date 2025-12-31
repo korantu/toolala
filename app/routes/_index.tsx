@@ -150,9 +150,16 @@ function PagesList({ pages }: { pages: { slug: string; description: string; acce
   // Filter pages based on search term
   const filteredPages = pages.filter((page) => {
     if (!searchTerm) return true;
-    const term = searchTerm.toLowerCase();
-    return page.slug.toLowerCase().includes(term) || 
-           page.description.toLowerCase().includes(term);
+    
+    // Split search term by spaces and apply AND logic
+    const terms = searchTerm.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
+    const slugLower = page.slug.toLowerCase();
+    const descLower = page.description.toLowerCase();
+    
+    // All terms must match in either slug or description
+    return terms.every(term => 
+      slugLower.includes(term) || descLower.includes(term)
+    );
   });
 
   // Sort pages based on selected sort option
