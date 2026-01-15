@@ -372,6 +372,7 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
   \`\`\`jsx
   const [data, setData] = useState(null);
   const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
   
   // Load from localStorage on mount
   useEffect(() => {
@@ -382,30 +383,31 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
       }
     } catch (error) {
       console.error('Failed to load from localStorage:', error);
+    } finally {
+      setIsInitialLoad(false);
     }
   }, []);
   
   // Save to localStorage when data changes (skip initial load)
   useEffect(() => {
-    if (data && saveStatus !== 'idle') {
+    if (data && !isInitialLoad) {
       setSaveStatus('saving');
       try {
         localStorage.setItem('myData', JSON.stringify(data));
         setSaveStatus('saved');
-        const timeoutId = setTimeout(() => setSaveStatus('idle'), 2000);
-        return () => clearTimeout(timeoutId);
       } catch (error) {
         setSaveStatus('error');
         console.error('Failed to save to localStorage:', error);
       }
     }
-  }, [data]);
-  
-  // Call this when user makes changes
-  const handleDataChange = (newData) => {
-    setSaveStatus('pending');
-    setData(newData);
-  };
+    
+    // Cleanup timeout for status reset
+    const timeoutId = setTimeout(() => {
+      if (saveStatus === 'saved') setSaveStatus('idle');
+    }, 2000);
+    
+    return () => clearTimeout(timeoutId);
+  }, [data, isInitialLoad, saveStatus]);
   \`\`\`
 
 ## Performance & Behavior
