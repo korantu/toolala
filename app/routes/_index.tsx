@@ -375,25 +375,37 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
   
   // Load from localStorage on mount
   useEffect(() => {
-    const stored = localStorage.getItem('myData');
-    if (stored) {
-      setData(JSON.parse(stored));
+    try {
+      const stored = localStorage.getItem('myData');
+      if (stored) {
+        setData(JSON.parse(stored));
+      }
+    } catch (error) {
+      console.error('Failed to load from localStorage:', error);
     }
   }, []);
   
-  // Save to localStorage when data changes
+  // Save to localStorage when data changes (skip initial load)
   useEffect(() => {
-    if (data) {
+    if (data && saveStatus !== 'idle') {
       setSaveStatus('saving');
       try {
         localStorage.setItem('myData', JSON.stringify(data));
         setSaveStatus('saved');
-        setTimeout(() => setSaveStatus('idle'), 2000);
+        const timeoutId = setTimeout(() => setSaveStatus('idle'), 2000);
+        return () => clearTimeout(timeoutId);
       } catch (error) {
         setSaveStatus('error');
+        console.error('Failed to save to localStorage:', error);
       }
     }
   }, [data]);
+  
+  // Call this when user makes changes
+  const handleDataChange = (newData) => {
+    setSaveStatus('pending');
+    setData(newData);
+  };
   \`\`\`
 
 ## Performance & Behavior
