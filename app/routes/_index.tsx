@@ -356,6 +356,7 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
 - Provide basic UI: loading spinner or text, error message, empty placeholder.
 - Add interactive controls necessary for {{Goal}}.
 - Use semantic HTML and accessible labels.
+- If icons or graphics are needed, use inline SVG elements (e.g., \`<svg>...</svg>\`).
 
 ## Performance & Behavior
 - Use \`fetch\` (no Axios) and async/await.
@@ -369,13 +370,30 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
 - No separate files or assets.
 - Do not include \`"use client"\` or framework-specific directives.
 
+## CRITICAL: No Bundler Available
+⚠️ This component runs in a browser environment WITHOUT a bundler (Webpack, Vite, etc.).
+- **DO NOT import external NPM packages** like \`lucide-react\`, \`react-icons\`, \`axios\`, etc.
+- **ONLY React and Tailwind CSS are available** (loaded from CDN).
+- **For icons/graphics**: Use inline SVG elements directly in your JSX.
+- **No \`require()\` or module imports work** beyond React itself.
+- Attempting to use external packages will cause \`Uncaught ReferenceError: require is not defined\`.
+
+Example of inline SVG for an icon:
+\`\`\`jsx
+<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
+  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
+</svg>
+\`\`\`
+
 ## Self-check before output
 - [ ] First line is import React…
 - [ ] Last line is \`export default ComponentName;\`
 - [ ] Single fenced \`jsx\` block.
 - [ ] No TypeScript anywhere.
 - [ ] Uses Tailwind.
-- [ ] JSON GET/POST logic included.`;
+- [ ] JSON GET/POST logic included.
+- [ ] NO external NPM packages imported (only React).
+- [ ] Icons/graphics use inline SVG if needed.`;
 
 function EditForm({ 
   edit, 
