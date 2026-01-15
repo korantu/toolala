@@ -358,6 +358,44 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
 - Use semantic HTML and accessible labels.
 - If icons or graphics are needed, use inline SVG elements (e.g., \`<svg>...</svg>\`).
 
+## State Management
+- **Use localStorage as the source of truth** for all application state.
+- **Save state to localStorage** whenever it changes (debounced if frequent).
+- **Load state from localStorage** on component mount.
+- **Show clear save/load indicators** to inform users of state operations:
+  - Display "Saving..." during save operations
+  - Display "Saved ✓" on successful save
+  - Display "Loaded" on successful load
+  - Display error messages if save/load fails
+- **Verify state operations** by checking localStorage after writes.
+- **Example pattern**:
+  \`\`\`jsx
+  const [data, setData] = useState(null);
+  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
+  
+  // Load from localStorage on mount
+  useEffect(() => {
+    const stored = localStorage.getItem('myData');
+    if (stored) {
+      setData(JSON.parse(stored));
+    }
+  }, []);
+  
+  // Save to localStorage when data changes
+  useEffect(() => {
+    if (data) {
+      setSaveStatus('saving');
+      try {
+        localStorage.setItem('myData', JSON.stringify(data));
+        setSaveStatus('saved');
+        setTimeout(() => setSaveStatus('idle'), 2000);
+      } catch (error) {
+        setSaveStatus('error');
+      }
+    }
+  }, [data]);
+  \`\`\`
+
 ## Performance & Behavior
 - Use \`fetch\` (no Axios) and async/await.
 - Debounce user input where relevant (~300ms).
@@ -394,7 +432,8 @@ Example of inline SVG for an icon:
 - [ ] Uses Tailwind.
 - [ ] JSON GET/POST logic included.
 - [ ] NO external NPM packages imported (only React).
-- [ ] Icons/graphics use inline SVG if needed.`;
+- [ ] Icons/graphics use inline SVG if needed.
+- [ ] State managed via localStorage with save/load indicators.`;
 
 function EditForm({ 
   edit, 
