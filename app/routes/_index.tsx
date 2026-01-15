@@ -360,21 +360,22 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
 
 ## State Management
 - **Use localStorage as the source of truth** for all application state.
-- **Save state to localStorage** whenever it changes (debounced if frequent).
-- **Load state from localStorage** on component mount.
-- **Show clear save/load indicators** to inform users of state operations:
-  - Display "Saving..." during save operations
-  - Display "Saved ✓" on successful save
-  - Display "Loaded" on successful load
-  - Display error messages if save/load fails
-- **Verify state operations** by checking localStorage after writes.
+- **Silently sync to localStorage** whenever state changes (no UI feedback for localStorage operations).
+- **Load from localStorage** on component mount (silently, no loading indicator).
+- **Provide explicit Save and Load buttons** for API interactions.
+- **Show indicators ONLY for API operations**, not localStorage:
+  - Display "Saving..." when saving to API
+  - Display "Saved ✓" on successful API save
+  - Display "Loading..." when loading from API
+  - Display "Loaded ✓" on successful API load
+  - Display error messages if API operations fail
 - **Example pattern**:
   \`\`\`jsx
   const [data, setData] = useState(null);
-  const [saveStatus, setSaveStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'error'
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
+  const [apiStatus, setApiStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'loading' | 'loaded' | 'error'
+  const [errorMessage, setErrorMessage] = useState('');
   
-  // Load from localStorage on mount
+  // Load from localStorage on mount (silent)
   useEffect(() => {
     try {
       const stored = localStorage.getItem('myData');
@@ -383,31 +384,55 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
       }
     } catch (error) {
       console.error('Failed to load from localStorage:', error);
-    } finally {
-      setIsInitialLoad(false);
     }
   }, []);
   
-  // Save to localStorage when data changes (skip initial load)
+  // Silently save to localStorage when data changes
   useEffect(() => {
-    if (data && !isInitialLoad) {
-      setSaveStatus('saving');
+    if (data !== null) {
       try {
         localStorage.setItem('myData', JSON.stringify(data));
-        setSaveStatus('saved');
       } catch (error) {
-        setSaveStatus('error');
         console.error('Failed to save to localStorage:', error);
       }
     }
-    
-    // Cleanup timeout for status reset
-    const timeoutId = setTimeout(() => {
-      if (saveStatus === 'saved') setSaveStatus('idle');
-    }, 2000);
-    
-    return () => clearTimeout(timeoutId);
-  }, [data, isInitialLoad, saveStatus]);
+  }, [data]);
+  
+  // Save to API with explicit button
+  const handleSaveToAPI = async () => {
+    setApiStatus('saving');
+    setErrorMessage('');
+    try {
+      const response = await fetch('/api/json/myData', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      if (!response.ok) throw new Error('Save failed');
+      setApiStatus('saved');
+      setTimeout(() => setApiStatus('idle'), 2000);
+    } catch (error) {
+      setApiStatus('error');
+      setErrorMessage('Failed to save to server');
+    }
+  };
+  
+  // Load from API with explicit button
+  const handleLoadFromAPI = async () => {
+    setApiStatus('loading');
+    setErrorMessage('');
+    try {
+      const response = await fetch('/api/json/myData');
+      if (!response.ok) throw new Error('Load failed');
+      const apiData = await response.json();
+      setData(apiData);
+      setApiStatus('loaded');
+      setTimeout(() => setApiStatus('idle'), 2000);
+    } catch (error) {
+      setApiStatus('error');
+      setErrorMessage('Failed to load from server');
+    }
+  };
   \`\`\`
 
 ## Performance & Behavior
@@ -447,7 +472,7 @@ Example of inline SVG for an icon:
 - [ ] JSON GET/POST logic included.
 - [ ] NO external NPM packages imported (only React).
 - [ ] Icons/graphics use inline SVG if needed.
-- [ ] State managed via localStorage with save/load indicators.`;
+- [ ] State silently synced to localStorage; explicit Save/Load buttons for API with indicators.`;
 
 function EditForm({ 
   edit, 
