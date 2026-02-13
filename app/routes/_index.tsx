@@ -144,7 +144,7 @@ export default function Index() {
 
 function PagesList({ pages }: { pages: { slug: string; description: string; accessTimestamp: number | null }[] }) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "recent">("name");
+  const [sortBy, setSortBy] = useState<"name" | "recent">("recent");
   const [copyStatus, setCopyStatus] = useState<{ [slug: string]: 'copying' | 'success' | 'error' | undefined }>({});
 
   // Filter pages based on search term
