@@ -15,7 +15,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const editSlug = url.searchParams.get("edit") || "";
 
   const storage = createStorageManager(context.cloudflare.env);
-  const slugs = await storage.listMetaSlugs(100);
+  const slugs = await storage.listMetaSlugs(300);
   const pages = slugs.map((slug) => ({
     slug,
     description: "", // default

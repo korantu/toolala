@@ -6,7 +6,7 @@ SpikeMe is a lightweight content dashboard for Cloudflare Workers. It lets you a
 - **Edge-hosted micro CMS:** Author raw HTML along with a short description, and persist both to Cloudflare KV using the unified `SPIKEME` namespace with key prefixes.
 - **Instant routing:** Every saved slug becomes a public route handled by `app/routes/$slug.tsx`, returning the stored HTML with a `text/html` response.
 - **React snippet support:** Begin content with a React import/identifier and the worker will wrap it in a standalone document, injecting the render call into `#root` automatically.
-- **Admin dashboard:** `app/routes/_index.tsx` lists existing pages, surfaces quick links, and provides a form for editing/creating entries.
+- **Admin dashboard:** `app/routes/_index.tsx` lists up to 300 existing pages, surfaces quick links, and provides a form for editing/creating entries.
 - **Page state management:** Each page can store and retrieve JSON data via `/slug/data` API endpoints for dynamic functionality.
 - **Worker-first tooling:** Remix Vite dev server, Wrangler deploys, and type-safe load contexts keep the stack familiar for Cloudflare developers.
 - **Unified storage:** Uses a single `SPIKEME` KV namespace with key prefixes (`content:`, `meta:`, `state:`) for simplified management and future extensibility.
