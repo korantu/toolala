@@ -51,6 +51,53 @@ async function deleteData() {
 
 State data is stored in the unified `SPIKEME` KV namespace with the `state:` prefix and is isolated per page slug.
 
+## Page Update API
+
+To update an existing page's HTML content, send a `POST` request to `/api/page/{slug}` with a JSON body containing the new `content`. The server returns `404` if the page does not exist, so you can only update pages that have already been created through the admin dashboard.
+
+### Endpoint
+
+**`POST /api/page/{slug}`**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `content` | string | yes | New HTML (or React snippet) to replace the page |
+
+### Response codes
+
+| Status | Meaning |
+|--------|---------|
+| `200` | Page updated successfully — `{ "success": true }` |
+| `400` | Missing or invalid `content`, or bad JSON body |
+| `404` | Page does not exist; create it first via the dashboard |
+| `405` | Wrong HTTP method (only POST is accepted) |
+| `500` | Storage error |
+
+### Example
+
+```bash
+curl -X POST https://your-worker.workers.dev/api/page/about \
+  -H "Content-Type: application/json" \
+  -d '{"content": "<h1>About Us</h1><p>Updated content.</p>"}'
+# 200 → { "success": true }
+
+curl -X POST https://your-worker.workers.dev/api/page/no-such-page \
+  -H "Content-Type: application/json" \
+  -d '{"content": "<h1>Hello</h1>"}'
+# 404 → { "error": "Page not found" }
+```
+
+```javascript
+const response = await fetch('/api/page/about', {
+  method: 'POST',
+  headers: { 'Content-Type': 'application/json' },
+  body: JSON.stringify({ content: '<h1>About Us</h1><p>Updated content.</p>' }),
+});
+const result = await response.json(); // { success: true }
+```
+
+---
+
 ## JSON Data Storage API
 
 SpikeMe provides a referrer-scoped JSON storage API that allows client-side applications to store and retrieve JSON data based on the requesting page's URL. This is ideal for client-side state persistence, caching, or simple data storage without requiring database setup.
