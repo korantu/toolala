@@ -107,7 +107,7 @@ export default function Index() {
   useEffect(() => {
     if (action?.success && action?.slug && !action?.message) {
       // Use window.location.href for full page navigation to handle raw HTML responses
-      window.location.href = `/${action.slug}`;
+      window.open(`/${action.slug}`, '_blank');
     }
   }, [action?.success, action?.slug, action?.timestamp, action?.message]);
 
