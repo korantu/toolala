@@ -33,6 +33,7 @@ export interface StorageManager {
   // List operations
   listContentSlugs(limit?: number): Promise<string[]>;
   listMetaSlugs(limit?: number): Promise<string[]>;
+  listMetaWithDescriptions(limit?: number): Promise<Array<{ slug: string; description: string }>>;
   listStateSlugs(limit?: number): Promise<string[]>;
   listAccessTimestamps(limit?: number): Promise<Array<{ slug: string; timestamp: number }>>;
 }
@@ -80,7 +81,9 @@ export class UnifiedStorageManager implements StorageManager {
   }
 
   async setMeta(slug: string, meta: { description?: string; title?: string }): Promise<void> {
-    await this.kv.put(`meta:${slug}`, JSON.stringify(meta));
+    await this.kv.put(`meta:${slug}`, JSON.stringify(meta), {
+      metadata: { description: meta.description || "" },
+    });
   }
 
   async deleteMeta(slug: string): Promise<void> {
@@ -119,7 +122,9 @@ export class UnifiedStorageManager implements StorageManager {
   }
 
   async setAccessTimestamp(slug: string, timestamp: number): Promise<void> {
-    await this.kv.put(`accessedts:${slug}`, timestamp.toString());
+    await this.kv.put(`accessedts:${slug}`, timestamp.toString(), {
+      metadata: { timestamp },
+    });
   }
 
   async deleteAccessTimestamp(slug: string): Promise<void> {
@@ -137,25 +142,30 @@ export class UnifiedStorageManager implements StorageManager {
     return list.keys.map(k => k.name.replace(/^meta:/, ""));
   }
 
+  async listMetaWithDescriptions(limit = 100): Promise<Array<{ slug: string; description: string }>> {
+    const list = await this.kv.list<{ description: string }>({ prefix: "meta:", limit });
+    return list.keys.map(k => ({
+      slug: k.name.replace(/^meta:/, ""),
+      description: k.metadata?.description ?? "",
+    }));
+  }
+
   async listStateSlugs(limit = 100): Promise<string[]> {
     const list = await this.kv.list({ prefix: "state:", limit });
     return list.keys.map(k => k.name.replace(/^state:/, ""));
   }
 
   async listAccessTimestamps(limit = 100): Promise<Array<{ slug: string; timestamp: number }>> {
-    const list = await this.kv.list({ prefix: "accessedts:", limit });
-    
-    // Fetch all timestamps concurrently
-    const timestampPromises = list.keys.map(async (key) => {
+    const list = await this.kv.list<{ timestamp: number }>({ prefix: "accessedts:", limit });
+    const results: Array<{ slug: string; timestamp: number }> = [];
+    for (const key of list.keys) {
       const slug = key.name.replace(/^accessedts:/, "");
-      const timestamp = await this.getAccessTimestamp(slug);
-      return timestamp !== null ? { slug, timestamp } : null;
-    });
-    
-    const results = await Promise.all(timestampPromises);
-    
-    // Filter out null values (invalid timestamps)
-    return results.filter((result): result is { slug: string; timestamp: number } => result !== null);
+      // Use metadata if available (set by setAccessTimestamp), else fall back to value parse
+      if (key.metadata?.timestamp != null) {
+        results.push({ slug, timestamp: key.metadata.timestamp });
+      }
+    }
+    return results;
   }
 }
 

@@ -1,5 +1,5 @@
 import { nanoid } from "nanoid";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 import {
   json,
@@ -15,26 +15,19 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const editSlug = url.searchParams.get("edit") || "";
 
   const storage = createStorageManager(context.cloudflare.env);
-  const slugs = await storage.listMetaSlugs(300);
-  const pages = slugs.map((slug) => ({
-    slug,
-    description: "", // default
-    accessTimestamp: null as number | null,
-  }));
 
-  // Load descriptions and access timestamps in parallel
-  await Promise.all(
-    pages.map(async (page) => {
-      try {
-        const [meta, accessTimestamp] = await Promise.all([
-          storage.getMeta(page.slug),
-          storage.getAccessTimestamp(page.slug),
-        ]);
-        if (meta) page.description = meta.description || "";
-        page.accessTimestamp = accessTimestamp;
-      } catch {}
-    })
-  );
+  // Two list calls in parallel — no per-page reads
+  const [metaList, accessList] = await Promise.all([
+    storage.listMetaWithDescriptions(300),
+    storage.listAccessTimestamps(300),
+  ]);
+
+  const accessMap = new Map(accessList.map(({ slug, timestamp }) => [slug, timestamp]));
+  const pages = metaList.map(({ slug, description }) => ({
+    slug,
+    description,
+    accessTimestamp: accessMap.get(slug) ?? null,
+  }));
 
   let editData = { slug: "", html: "", description: "", hasReference: false };
   if (editSlug) {
@@ -147,49 +140,35 @@ function PagesList({ pages }: { pages: { slug: string; description: string; acce
   const [sortBy, setSortBy] = useState<"name" | "recent">("recent");
   const [copyStatus, setCopyStatus] = useState<{ [slug: string]: 'copying' | 'success' | 'error' | undefined }>({});
 
-  // Filter pages based on search term
-  const filteredPages = pages.filter((page) => {
-    if (!searchTerm) return true;
-    
-    // Split search term by spaces and apply AND logic
-    const terms = searchTerm.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0);
-    const slugLower = page.slug.toLowerCase();
-    const descLower = page.description.toLowerCase();
-    
-    // All terms must match in either slug or description
-    return terms.every(term => 
-      slugLower.includes(term) || descLower.includes(term)
-    );
-  });
+  const sortedPages = useMemo(() => {
+    const terms = searchTerm
+      ? searchTerm.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0)
+      : [];
 
-  // Sort pages based on selected sort option
-  const sortedPages = [...filteredPages].sort((a, b) => {
-    if (sortBy === "recent") {
-      // Sort by most recently accessed (descending)
-      // Pages without access timestamp go to the end
-      if (a.accessTimestamp === null && b.accessTimestamp === null) return 0;
-      if (a.accessTimestamp === null) return 1;
-      if (b.accessTimestamp === null) return -1;
-      return b.accessTimestamp - a.accessTimestamp;
-    } else {
-      // Sort by name (ascending)
+    const filtered = terms.length === 0
+      ? pages
+      : pages.filter((page) => {
+          const slugLower = page.slug.toLowerCase();
+          const descLower = page.description.toLowerCase();
+          return terms.every(term => slugLower.includes(term) || descLower.includes(term));
+        });
+
+    return [...filtered].sort((a, b) => {
+      if (sortBy === "recent") {
+        if (a.accessTimestamp === null && b.accessTimestamp === null) return 0;
+        if (a.accessTimestamp === null) return 1;
+        if (b.accessTimestamp === null) return -1;
+        return b.accessTimestamp - a.accessTimestamp;
+      }
       return a.slug.localeCompare(b.slug);
-    }
-  });
+    });
+  }, [pages, searchTerm, sortBy]);
 
   // Copy page source code to clipboard
   const copyPageSource = async (slug: string) => {
     setCopyStatus(prev => ({ ...prev, [slug]: 'copying' }));
     
     try {
-      // Fetch the page content via a simple API call
-      const response = await fetch(`/${slug}/edit`);
-      if (!response.ok) {
-        throw new Error('Failed to fetch page content');
-      }
-      
-      // The edit route redirects, but we can use the loader directly
-      // Let's make a simpler approach - we'll use the existing loader with a special parameter
       const apiResponse = await fetch(`/api/content/${slug}`);
       if (!apiResponse.ok) {
         throw new Error('Failed to fetch page content');
