@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { action } from "../app/routes/_index";
+import { action } from "../app/routes/dash";
 
 // Mock the Cloudflare context for testing
 const createMockContext = () => ({

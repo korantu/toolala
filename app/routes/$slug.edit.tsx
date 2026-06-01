@@ -10,9 +10,9 @@ export async function loader({ params, context }: LoaderFunctionArgs) {
   
   if (!html) {
     // If page doesn't exist, redirect to home with the slug to create new page
-    return redirect(`/?edit=${slug}`);
+    return redirect(`/dash?edit=${slug}`);
   }
 
   // Page exists, redirect to edit mode
-  return redirect(`/?edit=${slug}`);
+  return redirect(`/dash?edit=${slug}`);
 }

@@ -30,7 +30,7 @@ describe("Edit route loader", () => {
     const response = await loader({ params, context, request } as any);
     
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/?edit=test-page");
+    expect(response.headers.get("Location")).toBe("/dash?edit=test-page");
   });
 
   it("should redirect to edit mode for non-existent page", async () => {
@@ -41,7 +41,7 @@ describe("Edit route loader", () => {
     const response = await loader({ params, context, request } as any);
     
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/?edit=nonexistent-page");
+    expect(response.headers.get("Location")).toBe("/dash?edit=nonexistent-page");
   });
 
   it("should handle special characters in slug", async () => {
@@ -52,6 +52,6 @@ describe("Edit route loader", () => {
     const response = await loader({ params, context, request } as any);
     
     expect(response.status).toBe(302);
-    expect(response.headers.get("Location")).toBe("/?edit=my-test-page_123");
+    expect(response.headers.get("Location")).toBe("/dash?edit=my-test-page_123");
   });
 });
