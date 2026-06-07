@@ -342,6 +342,12 @@ const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX co
 - **Silently sync to localStorage** whenever state changes (no UI feedback for localStorage operations).
 - **Load from localStorage** on component mount (silently, no loading indicator).
 - **Provide explicit Save and Load buttons** for API interactions.
+- **For state-driven applications** (checklists, to-do lists, any app where each interaction represents a meaningful persistent change):
+  - **Auto-save to the API** immediately on each meaningful state change (e.g., ticking/unticking a checkbox, marking a task complete, changing a status).
+  - Show a brief "Saving..." / "Saved ✓" indicator during the auto-save so the user knows it went through.
+  - Keep the explicit **Load button** so the user can pull the latest state from the server at any time (useful when another device or person has made changes).
+  - Keep the explicit **Save button** as a manual fallback for bulk saves.
+  - This pattern ensures that what the user did is always visible to the other side: once a checkbox is ticked, any other user who clicks Load will see the updated state.
 - **Show indicators ONLY for API operations**, not localStorage:
   - Display "Saving..." when saving to API
   - Display "Saved ✓" on successful API save
@@ -451,7 +457,8 @@ Example of inline SVG for an icon:
 - [ ] JSON GET/POST logic included.
 - [ ] NO external NPM packages imported (only React).
 - [ ] Icons/graphics use inline SVG if needed.
-- [ ] State silently synced to localStorage; explicit Save/Load buttons for API with indicators.`;
+- [ ] State silently synced to localStorage; explicit Save/Load buttons for API with indicators.
+- [ ] For checklist/stateful apps: meaningful interactions (checkbox toggle, status change) auto-save to API so the other side sees them; Load button fetches latest from server.`;
 
 function EditForm({ 
   edit, 
@@ -532,12 +539,23 @@ function EditForm({
 
   const handleCopyInstructions = async () => {
     setCopyInstructionsStatus('copying');
-    
+
     try {
-      await navigator.clipboard.writeText(LLM_INSTRUCTIONS_TEMPLATE);
-      
+      let existing = '';
+      try {
+        existing = await navigator.clipboard.readText();
+      } catch {
+        // Ignore read errors — proceed with empty prefix
+      }
+
+      const combined = existing
+        ? `${existing}\n----\n${LLM_INSTRUCTIONS_TEMPLATE}`
+        : LLM_INSTRUCTIONS_TEMPLATE;
+
+      await navigator.clipboard.writeText(combined);
+
       setCopyInstructionsStatus('success');
-      
+
       // Clear success status after 2 seconds
       if (instructionsTimeoutRef.current) {
         clearTimeout(instructionsTimeoutRef.current);
@@ -545,11 +563,11 @@ function EditForm({
       instructionsTimeoutRef.current = setTimeout(() => {
         setCopyInstructionsStatus('idle');
       }, 2000);
-      
+
     } catch (error) {
       console.error('Failed to copy instructions:', error);
       setCopyInstructionsStatus('error');
-      
+
       // Clear error status after 3 seconds
       if (instructionsTimeoutRef.current) {
         clearTimeout(instructionsTimeoutRef.current);
