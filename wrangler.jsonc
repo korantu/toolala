@@ -22,6 +22,30 @@
 			"binding": "SPIKEME",
 			"id": "d062b0b0275940cc998aea2b43342ddb"
 		}
+	],
+	"r2_buckets": [
+		{
+			"binding": "TTS_CACHE",
+			"bucket_name": "tts-cache"
+		}
+	],
+	"ratelimits": [
+		{
+			"binding": "TTS_RATE_LIMIT",
+			"namespace_id": "1001",
+			"simple": {
+				"limit": 10,
+				"period": 60
+			}
+		},
+		{
+			"binding": "STT_RATE_LIMIT",
+			"namespace_id": "1002",
+			"simple": {
+				"limit": 10,
+				"period": 60
+			}
+		}
 	]
 	/**
 	 * Smart Placement

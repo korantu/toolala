@@ -224,6 +224,130 @@ async function loadUserPreferences() {
 
 **Note**: Since this is a public endpoint, do not store sensitive data. Consider adding authentication for production use cases requiring security.
 
+---
+
+## Speech API (ElevenLabs-backed)
+
+SpikeMe exposes two speech endpoints powered by [ElevenLabs](https://elevenlabs.io). Both are intentionally minimal — **use the browser's built-in `SpeechSynthesis` for English**; these endpoints exist for languages where browser TTS is unreliable or absent, primarily **Hebrew (`he`) and Spanish (`es`)**.
+
+### `POST /api/tts` — Text to Speech
+
+Converts text to an MP3 audio file. Responses are cached forever in R2, so the same text + voice pair is only generated once. Uncached generations are rate-limited to **10 per minute** globally.
+
+**Request** (`application/json`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `text` | string | yes | Text to synthesize. Max **100 characters** after normalization. |
+| `voice` | string | no | Voice name. One of `default`, `hebrew`, `spanish`. Defaults to `default`. |
+
+**Response**: `audio/mpeg` binary stream (MP3).
+
+| Status | Meaning |
+|--------|---------|
+| `200` | MP3 audio. Header `X-TTS-Cache: hit` means cached; `miss` means freshly generated. |
+| `400` | Missing or empty `text` |
+| `413` | Text exceeds 100 characters |
+| `429` | Rate limit exceeded (10 uncached generations/min) |
+| `502` | ElevenLabs API error |
+
+**Available voices:**
+
+| Voice name | ElevenLabs voice | Best for |
+|------------|-----------------|----------|
+| `default` | Rachel | Any non-English language |
+| `hebrew`  | Rachel | Hebrew (`he`) |
+| `spanish` | Antoni | Spanish (`es`) |
+
+`eleven_flash_v2_5` (the underlying model) detects language from the text automatically — the same voice produces natural Hebrew when given Hebrew text.
+
+**JavaScript example:**
+```javascript
+async function speak(text, voice = "hebrew") {
+  const res = await fetch("/api/tts", {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ text, voice }),
+  });
+  if (!res.ok) throw new Error((await res.json()).error);
+  const url = URL.createObjectURL(await res.blob());
+  const audio = new Audio(url);
+  audio.play();
+  audio.addEventListener("ended", () => URL.revokeObjectURL(url));
+}
+
+// Usage
+speak("שלום, מה שלומך?", "hebrew");
+speak("Hola, ¿cómo estás?", "spanish");
+```
+
+---
+
+### `POST /api/stt` — Speech to Text
+
+Transcribes an audio recording. No caching. Rate-limited to **10 per minute** globally. Maximum recording size is **200 KB** (approximately 10 seconds of typical mobile audio).
+
+**Only Hebrew (`he`) and Spanish (`es`) are supported** — use the browser's `SpeechRecognition` API for English.
+
+**Request** (`multipart/form-data`):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `audio` | File/Blob | yes | Audio file (WebM, MP3, WAV, M4A, etc.). Max 200 KB. |
+| `language` | string | yes | BCP-47 language code: `he` or `es`. |
+
+**Response** (`application/json`):
+
+| Status | Meaning |
+|--------|---------|
+| `200` | `{ "text": "transcribed text", "language_code": "he" }` |
+| `400` | Missing `audio` or unsupported `language` |
+| `413` | Audio exceeds 200 KB |
+| `429` | Rate limit exceeded (10/min) |
+| `502` | ElevenLabs API error |
+
+**JavaScript example:**
+```javascript
+async function transcribe(audioBlob, language = "he") {
+  const form = new FormData();
+  form.append("audio", audioBlob, "recording.webm");
+  form.append("language", language);
+
+  const res = await fetch("/api/stt", { method: "POST", body: form });
+  if (!res.ok) throw new Error((await res.json()).error);
+  const { text } = await res.json();
+  return text;
+}
+
+// Example with MediaRecorder
+const chunks = [];
+const recorder = new MediaRecorder(stream);
+recorder.ondataavailable = (e) => chunks.push(e.data);
+recorder.onstop = async () => {
+  const blob = new Blob(chunks, { type: "audio/webm" });
+  const text = await transcribe(blob, "he");
+  console.log("Transcribed:", text);
+};
+```
+
+---
+
+### Setup: ElevenLabs credentials
+
+Before deploying, set your API key as a Worker secret:
+```bash
+wrangler secret put ELEVENLABS_API_KEY
+```
+
+Create the R2 bucket for TTS caching:
+```bash
+wrangler r2 bucket create tts-cache
+```
+
+**Recommended:** In the ElevenLabs dashboard, create a dedicated API key for this project and set a low monthly character limit. This caps damage if the Worker is misconfigured.
+
+---
+
 ## Storage Architecture
 
 SpikeMe uses a unified KV namespace for simple and efficient data management:
