@@ -7,5 +7,6 @@ interface Env {
   TTS_CACHE: R2Bucket;
   TTS_RATE_LIMIT: RateLimit;
   STT_RATE_LIMIT: RateLimit;
+  GEMINI_API_KEY: string;
   ELEVENLABS_API_KEY: string;
 }

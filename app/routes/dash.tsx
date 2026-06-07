@@ -327,7 +327,7 @@ const LLM_INSTRUCTIONS_TEMPLATE = `Single-file React JSX component, plain JavaSc
 - Explicit **Save** / **Load** buttons for API. Show "Saving…" / "Saved ✓" / "Loading…" / error for API ops only.
 - Stateful apps (checklists, todos): also auto-save to API on each meaningful change so other users see it via Load.
 
-## Speech API (non-English only — use browser SpeechSynthesis for English)
+## Speech API — Google TTS + ElevenLabs STT (non-English only)
 ### TTS — POST /api/tts
 \`\`\`js
 fetch('/api/tts', {
