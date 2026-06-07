@@ -310,155 +310,47 @@ function PagesList({ pages }: { pages: { slug: string; description: string; acce
 }
 
 // LLM instructions template for generating React JSX components
-const LLM_INSTRUCTIONS_TEMPLATE = `You are generating a single-file React JSX component in plain JavaScript (no TypeScript). Output only one fenced code block labeled \`jsx\`. Do not include explanations or text outside the code block.
+const LLM_INSTRUCTIONS_TEMPLATE = `Single-file React JSX component, plain JavaScript (no TypeScript). Output one fenced \`jsx\` block only — no text outside it.
 
-## Output Contract
-- The very first line must be:
-  import React, { useState, useEffect } from "react";
-- The very last line must be:
-  export default ComponentName;
-- Use Tailwind CSS classes for styling.
-- Use JavaScript only: no \`type\`, \`interface\`, \`enum\`, generics, or \`.tsx\`.
-- All logic must be self-contained in one file. No external state, CSS, or libraries.
-- Must export a default component named \`{{ComponentName}}\`.
+## Rules
+- First line: \`import React, { useState, useEffect } from "react";\`
+- Last line: \`export default {{ComponentName}};\`
+- Tailwind for styling. No TypeScript. No external packages. No separate files.
+- No bundler: only React + Tailwind (CDN). Use inline SVG for icons, never lucide-react or similar.
 
-## Functional Requirements
-- Fetch JSON from \`/api/json{{OptionalSubpath}}\` using GET on mount.
-- Handle loading, error, and empty states gracefully.
-- Support POST to \`/api/json{{OptionalSubpath}}\` to create or update data.
-- Refresh data after successful POST.
-- Show errors from the server if present.
-- Keep UX minimal, accessible, and responsive.
+## Data API
+- GET/POST \`/api/json{{OptionalSubpath}}\` — JSON storage (no auth required).
+- On mount: fetch GET, show loading/error/empty states. After POST: refresh.
 
-## UI/UX
-- Use Tailwind only for styling.
-- Provide basic UI: loading spinner or text, error message, empty placeholder.
-- Add interactive controls necessary for {{Goal}}.
-- Use semantic HTML and accessible labels.
-- If icons or graphics are needed, use inline SVG elements (e.g., \`<svg>...</svg>\`).
+## State
+- localStorage = source of truth (load on mount, sync silently on change, no UI feedback).
+- Explicit **Save** / **Load** buttons for API. Show "Saving…" / "Saved ✓" / "Loading…" / error for API ops only.
+- Stateful apps (checklists, todos): also auto-save to API on each meaningful change so other users see it via Load.
 
-## State Management
-- **Use localStorage as the source of truth** for all application state.
-- **Silently sync to localStorage** whenever state changes (no UI feedback for localStorage operations).
-- **Load from localStorage** on component mount (silently, no loading indicator).
-- **Provide explicit Save and Load buttons** for API interactions.
-- **For state-driven applications** (checklists, to-do lists, any app where each interaction represents a meaningful persistent change):
-  - **Auto-save to the API** immediately on each meaningful state change (e.g., ticking/unticking a checkbox, marking a task complete, changing a status).
-  - Show a brief "Saving..." / "Saved ✓" indicator during the auto-save so the user knows it went through.
-  - Keep the explicit **Load button** so the user can pull the latest state from the server at any time (useful when another device or person has made changes).
-  - Keep the explicit **Save button** as a manual fallback for bulk saves.
-  - This pattern ensures that what the user did is always visible to the other side: once a checkbox is ticked, any other user who clicks Load will see the updated state.
-- **Show indicators ONLY for API operations**, not localStorage:
-  - Display "Saving..." when saving to API
-  - Display "Saved ✓" on successful API save
-  - Display "Loading..." when loading from API
-  - Display "Loaded ✓" on successful API load
-  - Display error messages if API operations fail
-- **Example pattern**:
-  \`\`\`jsx
-  const [data, setData] = useState(null);
-  const [apiStatus, setApiStatus] = useState('idle'); // 'idle' | 'saving' | 'saved' | 'loading' | 'loaded' | 'error'
-  const [errorMessage, setErrorMessage] = useState('');
-  
-  // Load from localStorage on mount (silent)
-  useEffect(() => {
-    try {
-      const stored = localStorage.getItem('myData');
-      if (stored) {
-        setData(JSON.parse(stored));
-      }
-    } catch (error) {
-      console.error('Failed to load from localStorage:', error);
-    }
-  }, []);
-  
-  // Silently save to localStorage when data changes
-  useEffect(() => {
-    if (data !== null) {
-      try {
-        localStorage.setItem('myData', JSON.stringify(data));
-      } catch (error) {
-        console.error('Failed to save to localStorage:', error);
-      }
-    }
-  }, [data]);
-  
-  // Save to API with explicit button
-  const handleSaveToAPI = async () => {
-    setApiStatus('saving');
-    setErrorMessage('');
-    try {
-      const response = await fetch('/api/json/myData', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data)
-      });
-      if (!response.ok) throw new Error('Save failed');
-      setApiStatus('saved');
-      setTimeout(() => setApiStatus('idle'), 2000);
-    } catch (error) {
-      setApiStatus('error');
-      setErrorMessage('Failed to save to server');
-    }
-  };
-  
-  // Load from API with explicit button
-  const handleLoadFromAPI = async () => {
-    setApiStatus('loading');
-    setErrorMessage('');
-    try {
-      const response = await fetch('/api/json/myData');
-      if (!response.ok) throw new Error('Load failed');
-      const apiData = await response.json();
-      setData(apiData);
-      setApiStatus('loaded');
-      setTimeout(() => setApiStatus('idle'), 2000);
-    } catch (error) {
-      setApiStatus('error');
-      setErrorMessage('Failed to load from server');
-    }
-  };
-  \`\`\`
+## Speech API (non-English only — use browser SpeechSynthesis for English)
+### TTS — POST /api/tts
+\`\`\`js
+fetch('/api/tts', {
+  method: 'POST',
+  headers: {'content-type': 'application/json'},
+  body: JSON.stringify({text: 'שלום', lang: 'he'}) // lang: 'he' or 'es'
+}).then(r => r.blob()).then(b => new Audio(URL.createObjectURL(b)).play());
+\`\`\`
+- Max 100 chars. Returns audio/mpeg. Errors: 400 bad input, 413 too long, 429 rate limit, 502 upstream.
 
-## Performance & Behavior
-- Use \`fetch\` (no Axios) and async/await.
-- Debounce user input where relevant (~300ms).
-- Avoid unnecessary re-renders.
-
-## Hard Constraints
-- One fenced \`jsx\` block only — no extra text.
-- No TypeScript syntax of any kind.
-- No external dependencies beyond React.
-- No separate files or assets.
-- Do not include \`"use client"\` or framework-specific directives.
-
-## CRITICAL: No Bundler Available
-⚠️ This component runs in a browser environment WITHOUT a bundler (Webpack, Vite, etc.).
-- **DO NOT import external NPM packages** like \`lucide-react\`, \`react-icons\`, \`axios\`, etc.
-- **ONLY React and Tailwind CSS are available** (loaded from CDN).
-- **For icons/graphics**: Use inline SVG elements directly in your JSX.
-- **No \`require()\` or module imports work** beyond React itself.
-- Attempting to use external packages will cause \`Uncaught ReferenceError: require is not defined\`.
-
-Example of inline SVG for an icon:
-\`\`\`jsx
-{/* Plus icon in a circle */}
-<svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-11a1 1 0 10-2 0v2H7a1 1 0 100 2h2v2a1 1 0 102 0v-2h2a1 1 0 100-2h-2V7z" clipRule="evenodd" />
-</svg>
+### STT — POST /api/stt
+\`\`\`js
+const f = new FormData();
+f.append('audio', blob, 'rec.webm'); // max 200 KB (~10 s)
+f.append('language', 'he');          // 'he' or 'es'
+fetch('/api/stt', {method: 'POST', body: f}).then(r => r.json()); // {text, language_code}
 \`\`\`
 
-## Self-check before output
-- [ ] First line is import React…
-- [ ] Last line is \`export default ComponentName;\`
-- [ ] Single fenced \`jsx\` block.
-- [ ] No TypeScript anywhere.
-- [ ] Uses Tailwind.
-- [ ] JSON GET/POST logic included.
-- [ ] NO external NPM packages imported (only React).
-- [ ] Icons/graphics use inline SVG if needed.
-- [ ] State silently synced to localStorage; explicit Save/Load buttons for API with indicators.
-- [ ] For checklist/stateful apps: meaningful interactions (checkbox toggle, status change) auto-save to API so the other side sees them; Load button fetches latest from server.`;
+## Self-check
+- [ ] One \`jsx\` block, correct first/last lines, no TypeScript.
+- [ ] GET/POST /api/json wired, loading/error/empty handled.
+- [ ] localStorage sync silent; API ops show status indicators.
+- [ ] No external npm packages; inline SVG for icons.`;
 
 function EditForm({ 
   edit, 
