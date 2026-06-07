@@ -1,12 +1,14 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/cloudflare";
 
 const MAX_CHARS = 100;
+const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
 
-// Google Cloud TTS WaveNet voices — natural quality for each language
-const LANG_CONFIG: Record<string, { languageCode: string; name: string }> = {
-  hebrew:  { languageCode: "he-IL", name: "he-IL-Wavenet-A" },
-  spanish: { languageCode: "es-ES", name: "es-ES-Wavenet-B" },
-  default: { languageCode: "he-IL", name: "he-IL-Wavenet-A" },
+// All Gemini voices are multilingual — language is detected from input text.
+// Aoede: bright and natural. Swap to any Gemini voice name you prefer.
+const VOICE_FOR: Record<string, string> = {
+  hebrew:  "Aoede",
+  spanish: "Aoede",
+  default: "Aoede",
 };
 
 function corsHeaders(): Headers {
@@ -46,6 +48,31 @@ async function sha256Hex(value: string): Promise<string> {
     .join("");
 }
 
+// Wrap raw 24kHz 16-bit mono PCM in a WAV container so browsers can play it.
+function pcmToWav(pcm: Uint8Array, sampleRate = 24000): Uint8Array {
+  const numChannels = 1;
+  const bitsPerSample = 16;
+  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
+  const blockAlign = (numChannels * bitsPerSample) / 8;
+  const buf = new ArrayBuffer(44 + pcm.length);
+  const v = new DataView(buf);
+  const w = (off: number, s: string) => {
+    for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i));
+  };
+  w(0, "RIFF"); v.setUint32(4, 36 + pcm.length, true);
+  w(8, "WAVE"); w(12, "fmt ");
+  v.setUint32(16, 16, true);
+  v.setUint16(20, 1, true);               // PCM
+  v.setUint16(22, numChannels, true);
+  v.setUint32(24, sampleRate, true);
+  v.setUint32(28, byteRate, true);
+  v.setUint16(32, blockAlign, true);
+  v.setUint16(34, bitsPerSample, true);
+  w(36, "data"); v.setUint32(40, pcm.length, true);
+  new Uint8Array(buf).set(pcm, 44);
+  return new Uint8Array(buf);
+}
+
 export async function loader({ request }: LoaderFunctionArgs) {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders() });
@@ -83,23 +110,23 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
 
   // voice field takes priority; lang (BCP-47 e.g. "he-IL") is the friendly alternative
-  let voiceName: string;
-  if (typeof body.voice === "string" && body.voice in LANG_CONFIG) {
-    voiceName = body.voice;
+  let voiceKey: string;
+  if (typeof body.voice === "string" && body.voice in VOICE_FOR) {
+    voiceKey = body.voice;
   } else if (typeof body.lang === "string") {
-    voiceName = langToVoice(body.lang);
+    voiceKey = langToVoice(body.lang);
   } else {
-    voiceName = "default";
+    voiceKey = "default";
   }
-  const { languageCode, name: voiceModelName } = LANG_CONFIG[voiceName];
+  const voiceName = VOICE_FOR[voiceKey];
 
-  const cacheKey = await sha256Hex(JSON.stringify({ v: 2, provider: "google", voice: voiceModelName, text }));
-  const objectKey = `tts/${cacheKey}.mp3`;
+  const cacheKey = await sha256Hex(JSON.stringify({ v: 3, provider: "gemini", voice: voiceName, text }));
+  const objectKey = `tts/${cacheKey}.wav`;
 
   const cached = await env.TTS_CACHE.get(objectKey);
   if (cached) {
     const h = corsHeaders();
-    h.set("Content-Type", "audio/mpeg");
+    h.set("Content-Type", "audio/wav");
     h.set("Cache-Control", "public, max-age=31536000, immutable");
     h.set("X-TTS-Cache", "hit");
     return new Response(cached.body, { headers: h });
@@ -110,42 +137,51 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return jsonError({ error: "rate_limited", message: "Too many generations. Try again soon." }, 429);
   }
 
-  const googleRes = await fetch(
-    `https://texttospeech.googleapis.com/v1/text:synthesize?key=${env.GOOGLE_TTS_API_KEY}`,
+  const geminiRes = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        input: { text },
-        voice: { languageCode, name: voiceModelName },
-        audioConfig: { audioEncoding: "MP3", speakingRate: 0.9 },
+        contents: [{ parts: [{ text }] }],
+        generationConfig: {
+          responseModalities: ["AUDIO"],
+          speechConfig: {
+            voiceConfig: { prebuiltVoiceConfig: { voiceName } },
+          },
+        },
       }),
     }
   );
 
-  if (!googleRes.ok) {
-    const details = await googleRes.text().catch(() => "");
-    return jsonError({ error: "tts_failed", status: googleRes.status, details: details.slice(0, 500) }, 502);
+  if (!geminiRes.ok) {
+    const details = await geminiRes.text().catch(() => "");
+    return jsonError({ error: "tts_failed", status: geminiRes.status, details: details.slice(0, 500) }, 502);
   }
 
-  const { audioContent } = await googleRes.json() as { audioContent: string };
-  if (!audioContent) {
+  const data = await geminiRes.json() as {
+    candidates?: { content?: { parts?: { inlineData?: { data?: string; mimeType?: string } }[] } }[];
+  };
+
+  const b64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+  if (!b64) {
     return jsonError({ error: "tts_empty_response" }, 502);
   }
 
-  // Google returns base64-encoded MP3
-  const audioBytes = Uint8Array.from(atob(audioContent), (c) => c.charCodeAt(0));
+  // Gemini returns 24kHz 16-bit mono PCM — wrap in WAV container
+  const pcm = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const wav = pcmToWav(pcm);
 
-  await env.TTS_CACHE.put(objectKey, audioBytes, {
+  await env.TTS_CACHE.put(objectKey, wav, {
     httpMetadata: {
-      contentType: "audio/mpeg",
+      contentType: "audio/wav",
       cacheControl: "public, max-age=31536000, immutable",
     },
   });
 
   const h = corsHeaders();
-  h.set("Content-Type", "audio/mpeg");
+  h.set("Content-Type", "audio/wav");
   h.set("Cache-Control", "public, max-age=31536000, immutable");
   h.set("X-TTS-Cache", "miss");
-  return new Response(audioBytes, { headers: h });
+  return new Response(wav, { headers: h });
 }
