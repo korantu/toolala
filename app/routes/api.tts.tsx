@@ -1,14 +1,13 @@
 import { type ActionFunctionArgs, type LoaderFunctionArgs } from "@remix-run/cloudflare";
 
 const MAX_CHARS = 100;
-const GEMINI_TTS_MODEL = "gemini-2.5-flash-preview-tts";
 
-// All Gemini voices are multilingual — language is detected from input text.
-// Aoede: bright and natural. Swap to any Gemini voice name you prefer.
+// OpenAI TTS voices are all multilingual. nova is warm and natural.
+// Other options: alloy, echo, fable, onyx, shimmer
 const VOICE_FOR: Record<string, string> = {
-  hebrew:  "Aoede",
-  spanish: "Aoede",
-  default: "Aoede",
+  hebrew:  "nova",
+  spanish: "nova",
+  default: "nova",
 };
 
 function corsHeaders(): Headers {
@@ -48,31 +47,6 @@ async function sha256Hex(value: string): Promise<string> {
     .join("");
 }
 
-// Wrap raw 24kHz 16-bit mono PCM in a WAV container so browsers can play it.
-function pcmToWav(pcm: Uint8Array, sampleRate = 24000): Uint8Array {
-  const numChannels = 1;
-  const bitsPerSample = 16;
-  const byteRate = (sampleRate * numChannels * bitsPerSample) / 8;
-  const blockAlign = (numChannels * bitsPerSample) / 8;
-  const buf = new ArrayBuffer(44 + pcm.length);
-  const v = new DataView(buf);
-  const w = (off: number, s: string) => {
-    for (let i = 0; i < s.length; i++) v.setUint8(off + i, s.charCodeAt(i));
-  };
-  w(0, "RIFF"); v.setUint32(4, 36 + pcm.length, true);
-  w(8, "WAVE"); w(12, "fmt ");
-  v.setUint32(16, 16, true);
-  v.setUint16(20, 1, true);               // PCM
-  v.setUint16(22, numChannels, true);
-  v.setUint32(24, sampleRate, true);
-  v.setUint32(28, byteRate, true);
-  v.setUint16(32, blockAlign, true);
-  v.setUint16(34, bitsPerSample, true);
-  w(36, "data"); v.setUint32(40, pcm.length, true);
-  new Uint8Array(buf).set(pcm, 44);
-  return new Uint8Array(buf);
-}
-
 export async function loader({ request }: LoaderFunctionArgs) {
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders() });
@@ -109,7 +83,6 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return jsonError({ error: "text_too_long", maxChars: MAX_CHARS, actualChars: text.length }, 413);
   }
 
-  // voice field takes priority; lang (BCP-47 e.g. "he-IL") is the friendly alternative
   let voiceKey: string;
   if (typeof body.voice === "string" && body.voice in VOICE_FOR) {
     voiceKey = body.voice;
@@ -120,13 +93,13 @@ export async function action({ request, context }: ActionFunctionArgs) {
   }
   const voiceName = VOICE_FOR[voiceKey];
 
-  const cacheKey = await sha256Hex(JSON.stringify({ v: 3, provider: "gemini", voice: voiceName, text }));
-  const objectKey = `tts/${cacheKey}.wav`;
+  const cacheKey = await sha256Hex(JSON.stringify({ v: 4, provider: "openai", voice: voiceName, text }));
+  const objectKey = `tts/${cacheKey}.mp3`;
 
   const cached = await env.TTS_CACHE.get(objectKey);
   if (cached) {
     const h = corsHeaders();
-    h.set("Content-Type", "audio/wav");
+    h.set("Content-Type", "audio/mpeg");
     h.set("Cache-Control", "public, max-age=31536000, immutable");
     h.set("X-TTS-Cache", "hit");
     return new Response(cached.body, { headers: h });
@@ -137,51 +110,37 @@ export async function action({ request, context }: ActionFunctionArgs) {
     return jsonError({ error: "rate_limited", message: "Too many generations. Try again soon." }, 429);
   }
 
-  const geminiRes = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_TTS_MODEL}:generateContent?key=${env.GEMINI_API_KEY}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text }] }],
-        generationConfig: {
-          responseModalities: ["AUDIO"],
-          speechConfig: {
-            voiceConfig: { prebuiltVoiceConfig: { voiceName } },
-          },
-        },
-      }),
-    }
-  );
+  const openaiRes = await fetch("https://api.openai.com/v1/audio/speech", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.OPENAI_API_KEY}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      model: "tts-1",
+      input: text,
+      voice: voiceName,
+      response_format: "mp3",
+    }),
+  });
 
-  if (!geminiRes.ok) {
-    const details = await geminiRes.text().catch(() => "");
-    return jsonError({ error: "tts_failed", status: geminiRes.status, details: details.slice(0, 500) }, 502);
+  if (!openaiRes.ok) {
+    const details = await openaiRes.text().catch(() => "");
+    return jsonError({ error: "tts_failed", status: openaiRes.status, details: details.slice(0, 500) }, 502);
   }
 
-  const data = await geminiRes.json() as {
-    candidates?: { content?: { parts?: { inlineData?: { data?: string; mimeType?: string } }[] } }[];
-  };
+  const audio = await openaiRes.arrayBuffer();
 
-  const b64 = data.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
-  if (!b64) {
-    return jsonError({ error: "tts_empty_response" }, 502);
-  }
-
-  // Gemini returns 24kHz 16-bit mono PCM — wrap in WAV container
-  const pcm = Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
-  const wav = pcmToWav(pcm);
-
-  await env.TTS_CACHE.put(objectKey, wav, {
+  await env.TTS_CACHE.put(objectKey, audio, {
     httpMetadata: {
-      contentType: "audio/wav",
+      contentType: "audio/mpeg",
       cacheControl: "public, max-age=31536000, immutable",
     },
   });
 
   const h = corsHeaders();
-  h.set("Content-Type", "audio/wav");
+  h.set("Content-Type", "audio/mpeg");
   h.set("Cache-Control", "public, max-age=31536000, immutable");
   h.set("X-TTS-Cache", "miss");
-  return new Response(wav, { headers: h });
+  return new Response(audio, { headers: h });
 }
