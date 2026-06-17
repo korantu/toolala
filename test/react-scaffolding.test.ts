@@ -16,6 +16,17 @@ describe("isReactSnippet", () => {
     const withLeadingWhitespace = "\n\n    import React from 'react';";
     expect(isReactSnippet(withLeadingWhitespace)).toBe(true);
   });
+
+  it("returns true for a Babel script wrapper", () => {
+    const result = isReactSnippet(`<script type="text/babel">
+const { useState } = React;
+function App() {
+  return <div>Hello</div>;
+}
+</script>`);
+
+    expect(result).toBe(true);
+  });
 });
 
 describe("buildReactDocument", () => {
@@ -28,6 +39,52 @@ describe("buildReactDocument", () => {
     expect(document).toContain("const App = () => <div>{useState()[0]}</div>;");
     expect(document).toContain("<title>Sample &lt;Title&gt;</title>");
     expect(document).toContain("<div id=\"root\"></div>");
+  });
+
+  it("pins browser CDN dependencies", () => {
+    const source = "import React from 'react';\nconst App = () => <div>Hello</div>;";
+    const document = buildReactDocument(source, "Pinned Dependencies");
+
+    expect(document).toContain("https://cdn.tailwindcss.com/3.4.17");
+    expect(document).toContain("https://unpkg.com/react@18.3.1/umd/react.development.js");
+    expect(document).toContain("https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js");
+    expect(document).toContain("https://unpkg.com/@babel/standalone@7.29.7/babel.min.js");
+  });
+
+  it("unwraps a single Babel script wrapper before embedding source", () => {
+    const source = `<script type="text/babel">
+const { useState } = React;
+
+function HelloCounter() {
+  const [count, setCount] = useState(0);
+  return <button onClick={() => setCount(c => c + 1)}>{count}</button>;
+}
+
+ReactDOM.render(<HelloCounter />, document.getElementById('root'));
+</script>`;
+    const document = buildReactDocument(source, "Script Wrapped");
+
+    expect(document).toContain("const { useState } = React;");
+    expect(document).toContain("ReactDOM.render(<HelloCounter />, document.getElementById('root'));");
+    expect(document).not.toContain('<script type="text/babel">\n<script type="text/babel">');
+    expect(document).not.toContain("</script>\n  </script>");
+  });
+
+  it("normalizes react-dom/client createRoot imports", () => {
+    const source = `import React from "react";
+import { createRoot } from "react-dom/client";
+
+function App() {
+  return <div>Hello</div>;
+}
+
+createRoot(document.getElementById("root")).render(<App />);`;
+    const document = buildReactDocument(source, "Create Root");
+
+    expect(document).not.toContain('from "react-dom/client"');
+    expect(document).toContain("const createRoot = ReactDOM.createRoot;");
+    expect(document).toContain('createRoot(document.getElementById("root")).render(<App />);');
+    expect(document).not.toContain("ReactDOM.render(<App />");
   });
 
   it("includes mobile-specific meta tags for proper mobile operation", () => {

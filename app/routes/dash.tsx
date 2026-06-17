@@ -520,7 +520,7 @@ function EditForm({
             className="w-full p-3 border border-gray-600 bg-gray-700 text-gray-100 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition font-mono text-sm placeholder-gray-400"
           />
           <p className="mt-2 text-xs text-gray-400">
-            Paste raw HTML or kick off with a React component (first line referencing React) and we&apos;ll scaffold the render call automatically.
+            Paste raw HTML, raw React JSX, or one text/babel script wrapper and we&apos;ll scaffold the page automatically.
           </p>
         </div>
         <div className="flex flex-wrap items-center gap-3">
@@ -661,4 +661,3 @@ function EditForm({
     </section>
   );
 }
-

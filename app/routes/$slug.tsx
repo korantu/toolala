@@ -88,7 +88,7 @@ ${html}
 export function isReactSnippet(html: string): boolean {
   const normalized = html.replace(/^\uFEFF/, ""); // drop UTF-8 BOM if present
   const [firstLine = ""] = normalized.trimStart().split(/\r?\n/, 1);
-  return /\bReact\b/.test(firstLine);
+  return /\bReact\b/.test(firstLine) || isBabelScriptTag(firstLine);
 }
 
 export function buildReactDocument(source: string, title: string, slug?: string): string {
@@ -105,11 +105,11 @@ export function buildReactDocument(source: string, title: string, slug?: string)
     }
   </script>` : '';
   
-  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="format-detection" content="telephone=no">\n  <meta name="mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-status-bar-style" content="default">\n  <meta name="theme-color" content="#111827">\n  <title>${escapedTitle}</title>${manifestLink}\n  <!-- Tailwind CSS from CDN -->\n  <script src="https://cdn.tailwindcss.com"></script>${serviceWorkerScript}\n</head>\n<body class="bg-gray-900 text-gray-100">\n  <div id="root"></div>\n\n  <!-- React & ReactDOM from CDN -->\n  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>\n  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>\n  \n  <!-- Babel Standalone for JSX transpilation -->\n  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>\n\n  <script type="text/babel">\n${preparedSource}\n  </script>\n</body>\n</html>`;
+  return `<!DOCTYPE html>\n<html lang="en">\n<head>\n  <meta charset="UTF-8">\n  <meta name="viewport" content="width=device-width, initial-scale=1">\n  <meta name="format-detection" content="telephone=no">\n  <meta name="mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-capable" content="yes">\n  <meta name="apple-mobile-web-app-status-bar-style" content="default">\n  <meta name="theme-color" content="#111827">\n  <title>${escapedTitle}</title>${manifestLink}\n  <!-- Tailwind CSS from CDN -->\n  <script src="https://cdn.tailwindcss.com/3.4.17"></script>${serviceWorkerScript}\n</head>\n<body class="bg-gray-900 text-gray-100">\n  <div id="root"></div>\n\n  <!-- React & ReactDOM from CDN -->\n  <script crossorigin src="https://unpkg.com/react@18.3.1/umd/react.development.js"></script>\n  <script crossorigin src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js"></script>\n  \n  <!-- Babel Standalone for JSX transpilation -->\n  <script src="https://unpkg.com/@babel/standalone@7.29.7/babel.min.js"></script>\n\n  <script type="text/babel" data-presets="react">\n${preparedSource}\n  </script>\n</body>\n</html>`;
 }
 
 function normalizeReactSource(source: string): string {
-  let output = source.replace(/\r\n?/g, "\n");
+  let output = unwrapBabelScript(source).replace(/\r\n?/g, "\n");
 
   output = output.replace(/^[\t ]*import\s+React\s*,\s*\{\s*([^}]+)\s*\}\s+from\s+["']react["'];?\s*$/gm, (_, hooks) =>
     renderHookAssignments(hooks, "React"),
@@ -131,11 +131,30 @@ function normalizeReactSource(source: string): string {
 
   output = output.replace(/^[\t ]*import\s+ReactDOM\s+from\s+["']react-dom["'];?\s*$/gm, "");
 
+  output = output.replace(/^[\t ]*import\s+ReactDOM\s+from\s+["']react-dom\/client["'];?\s*$/gm, "const ReactDOM = window.ReactDOM;");
+
+  output = output.replace(/^[\t ]*import\s+\{\s*([^}]+)\s*\}\s+from\s+["']react-dom\/client["'];?\s*$/gm, (_, hooks) =>
+    renderHookAssignments(hooks, "ReactDOM"),
+  );
+
   output = ensureReactDomRender(output);
 
   output = output.replace(/\n{3,}/g, "\n\n");
 
   return output.trimStart();
+}
+
+function isBabelScriptTag(line: string): boolean {
+  return /<script\b(?=[^>]*\btype\s*=\s*["']text\/(?:babel|jsx)["'])[^>]*>/i.test(line);
+}
+
+function unwrapBabelScript(source: string): string {
+  const normalized = source.replace(/^\uFEFF/, "").trim();
+  const match = normalized.match(
+    /^<script\b(?=[^>]*\btype\s*=\s*["']text\/(?:babel|jsx)["'])[^>]*>([\s\S]*)<\/script>\s*$/i,
+  );
+
+  return match ? match[1] : source;
 }
 
 function renderHookAssignments(hooks: string, namespace: "React" | "ReactDOM"): string {
@@ -152,7 +171,7 @@ function renderHookAssignments(hooks: string, namespace: "React" | "ReactDOM"): 
 }
 
 function ensureReactDomRender(source: string): string {
-  if (/ReactDOM\.render\s*\(/.test(source)) {
+  if (/ReactDOM\.render\s*\(|\bcreateRoot\b[\s\S]*?\.render\s*\(|ReactDOM\.createRoot\b[\s\S]*?\.render\s*\(/.test(source)) {
     return source;
   }
 
