@@ -98,61 +98,6 @@ describe("Access Tracking", () => {
     });
   });
 
-  describe("listAccessTimestamps", () => {
-    it("should return empty array when no pages have been accessed", async () => {
-      const mockKV = createMockKV();
-      const storage = new UnifiedStorageManager(mockKV);
-      
-      const timestamps = await storage.listAccessTimestamps();
-      
-      expect(timestamps).toEqual([]);
-    });
-
-    it("should return all access timestamps", async () => {
-      const mockKV = createMockKV();
-      const storage = new UnifiedStorageManager(mockKV);
-      const now = Date.now();
-      
-      await storage.setAccessTimestamp("page1", now);
-      await storage.setAccessTimestamp("page2", now + 1000);
-      await storage.setAccessTimestamp("page3", now + 2000);
-      
-      const timestamps = await storage.listAccessTimestamps();
-      
-      expect(timestamps).toHaveLength(3);
-      expect(timestamps).toContainEqual({ slug: "page1", timestamp: now });
-      expect(timestamps).toContainEqual({ slug: "page2", timestamp: now + 1000 });
-      expect(timestamps).toContainEqual({ slug: "page3", timestamp: now + 2000 });
-    });
-
-    it("should respect limit parameter", async () => {
-      const mockKV = createMockKV();
-      const storage = new UnifiedStorageManager(mockKV);
-      const now = Date.now();
-      
-      await storage.setAccessTimestamp("page1", now);
-      await storage.setAccessTimestamp("page2", now + 1000);
-      await storage.setAccessTimestamp("page3", now + 2000);
-      
-      const timestamps = await storage.listAccessTimestamps(2);
-      
-      expect(timestamps.length).toBeLessThanOrEqual(2);
-    });
-
-    it("should skip invalid timestamp entries", async () => {
-      const mockKV = createMockKV();
-      await mockKV.put("accessedts:broken", "invalid");
-      await mockKV.put("accessedts:valid", "123456789");
-      const storage = new UnifiedStorageManager(mockKV);
-      
-      const timestamps = await storage.listAccessTimestamps();
-      
-      // Should only include the valid timestamp
-      expect(timestamps).toHaveLength(1);
-      expect(timestamps[0]).toEqual({ slug: "valid", timestamp: 123456789 });
-    });
-  });
-
   describe("Key Prefixes", () => {
     it("should use correct prefix for access timestamps", async () => {
       const mockKV = createMockKV();

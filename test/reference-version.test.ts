@@ -30,6 +30,38 @@ const createMockContext = (kvData: Map<string, string>) => ({
 } as any);
 
 describe("Reference version functionality", () => {
+  it("loader should not list pages when no edit slug is provided", async () => {
+    const context = {
+      cloudflare: {
+        env: {
+          SPIKEME: {
+            get: async () => {
+              throw new Error("get should not be called without an edit slug");
+            },
+            put: async () => {
+              throw new Error("put should not be called without an edit slug");
+            },
+            delete: async () => {
+              throw new Error("delete should not be called without an edit slug");
+            },
+            list: async () => {
+              throw new Error("list should not be called");
+            },
+          },
+        },
+      },
+    } as any;
+
+    const request = {
+      url: "http://localhost/dash",
+    } as any;
+
+    const response = await loader({ request, context, params: {} } as any);
+    const data = await response.json();
+
+    expect(data.edit).toEqual({ slug: "", html: "", description: "", hasReference: false });
+  });
+
   it("should save content as reference", async () => {
     const kvData = new Map<string, string>();
     kvData.set("content:test-page", "<h1>Test</h1>");

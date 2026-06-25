@@ -1,13 +1,11 @@
-import { nanoid } from "nanoid";
-import { useState, useEffect, useRef, useMemo } from "react";
+import { useState, useEffect, useRef } from "react";
 
 import {
   json,
-  redirect,
   type LoaderFunctionArgs,
   type ActionFunctionArgs,
 } from "@remix-run/cloudflare";
-import { Form, Link, useLoaderData, useActionData } from "@remix-run/react";
+import { Form, Link, useLoaderData, useActionData, useNavigate } from "@remix-run/react";
 import { createStorageManager } from "../lib/storage";
 
 export async function loader({ request, context }: LoaderFunctionArgs) {
@@ -15,19 +13,6 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
   const editSlug = url.searchParams.get("edit") || "";
 
   const storage = createStorageManager(context.cloudflare.env);
-
-  // Two list calls in parallel — no per-page reads
-  const [metaList, accessList] = await Promise.all([
-    storage.listMetaWithDescriptions(300),
-    storage.listAccessTimestamps(300),
-  ]);
-
-  const accessMap = new Map(accessList.map(({ slug, timestamp }) => [slug, timestamp]));
-  const pages = metaList.map(({ slug, description }) => ({
-    slug,
-    description,
-    accessTimestamp: accessMap.get(slug) ?? null,
-  }));
 
   let editData = { slug: "", html: "", description: "", hasReference: false };
   if (editSlug) {
@@ -42,7 +27,7 @@ export async function loader({ request, context }: LoaderFunctionArgs) {
     editData.hasReference = !!refHtml;
   }
 
-  return json({ pages, edit: editData });
+  return json({ edit: editData });
 }
 
 export async function action({ request, context }: ActionFunctionArgs) {
@@ -86,7 +71,7 @@ export async function action({ request, context }: ActionFunctionArgs) {
 }
 
 export default function Index() {
-  const { pages, edit } = useLoaderData<typeof loader>();
+  const { edit } = useLoaderData<typeof loader>();
   const action = useActionData<{ 
     error?: string; 
     success?: boolean; 
@@ -128,183 +113,65 @@ export default function Index() {
         {edit.slug ? (
           <EditForm edit={edit} action={action} />
         ) : (
-          <PagesList pages={pages} />
+          <DirectSlugForm />
         )}
       </main>
     </div>
   );
 }
 
-function PagesList({ pages }: { pages: { slug: string; description: string; accessTimestamp: number | null }[] }) {
-  const [searchTerm, setSearchTerm] = useState("");
-  const [sortBy, setSortBy] = useState<"name" | "recent">("recent");
-  const [copyStatus, setCopyStatus] = useState<{ [slug: string]: 'copying' | 'success' | 'error' | undefined }>({});
+function DirectSlugForm() {
+  const [name, setName] = useState("");
+  const navigate = useNavigate();
+  const slug = name.replace(/[^a-z0-9\-_]/gi, "").toLowerCase();
 
-  const sortedPages = useMemo(() => {
-    const terms = searchTerm
-      ? searchTerm.toLowerCase().trim().split(/\s+/).filter(t => t.length > 0)
-      : [];
-
-    const filtered = terms.length === 0
-      ? pages
-      : pages.filter((page) => {
-          const slugLower = page.slug.toLowerCase();
-          const descLower = page.description.toLowerCase();
-          return terms.every(term => slugLower.includes(term) || descLower.includes(term));
-        });
-
-    return [...filtered].sort((a, b) => {
-      if (sortBy === "recent") {
-        if (a.accessTimestamp === null && b.accessTimestamp === null) return 0;
-        if (a.accessTimestamp === null) return 1;
-        if (b.accessTimestamp === null) return -1;
-        return b.accessTimestamp - a.accessTimestamp;
-      }
-      return a.slug.localeCompare(b.slug);
-    });
-  }, [pages, searchTerm, sortBy]);
-
-  // Copy page source code to clipboard
-  const copyPageSource = async (slug: string) => {
-    setCopyStatus(prev => ({ ...prev, [slug]: 'copying' }));
-    
-    try {
-      const apiResponse = await fetch(`/api/content/${slug}`);
-      if (!apiResponse.ok) {
-        throw new Error('Failed to fetch page content');
-      }
-      
-      const data = await apiResponse.json() as { content?: string };
-      const content = data.content || '';
-      
-      // Copy to clipboard
-      await navigator.clipboard.writeText(content);
-      
-      setCopyStatus(prev => ({ ...prev, [slug]: 'success' }));
-      
-      // Clear success status after 2 seconds
-      setTimeout(() => {
-        setCopyStatus(prev => ({ ...prev, [slug]: undefined }));
-      }, 2000);
-      
-    } catch (error) {
-      console.error('Failed to copy page source:', error);
-      setCopyStatus(prev => ({ ...prev, [slug]: 'error' }));
-      
-      // Clear error status after 3 seconds
-      setTimeout(() => {
-        setCopyStatus(prev => ({ ...prev, [slug]: undefined }));
-      }, 3000);
+  const handleSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (slug) {
+      navigate(`/dash?edit=${slug}`);
     }
   };
 
   return (
-    <section>
-      <div className="flex justify-between items-center mb-6">
-        <h2 className="text-2xl font-semibold text-white">Pages</h2>
-        <Link 
-          to="/dash?edit=new"
-          className="bg-blue-600 text-white font-bold py-2 px-4 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-gray-900"
-        >
-          Create New Page
-        </Link>
-      </div>
-      
-      {/* Search and Sort controls */}
-      <div className="mb-4 flex gap-3">
-        <input
-          type="text"
-          placeholder="Search pages by name or description..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          className="flex-1 p-3 border border-gray-600 bg-gray-800 text-gray-100 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder-gray-400"
-        />
-        <select
-          value={sortBy}
-          onChange={(e) => setSortBy(e.target.value as "name" | "recent")}
-          className="p-3 border border-gray-600 bg-gray-800 text-gray-100 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition"
-        >
-          <option value="name">Sort by Name</option>
-          <option value="recent">Sort by Recent Access</option>
-        </select>
-      </div>
-
-      <div className="bg-gray-800 shadow-sm rounded-lg overflow-hidden border border-gray-700">
-        <ul className="divide-y divide-gray-700">
-          {sortedPages.length > 0 ? (
-            sortedPages.map((page) => (
-              <li key={page.slug} className="px-4 py-2 hover:bg-gray-700 transition-colors flex items-center">
-                <a 
-                  href={`/${page.slug}`} 
-                  className="text-blue-400 hover:underline font-medium truncate"
-                  title={page.slug}
-                >
-                  /{page.slug}
-                </a>
-                {page.description && (
-                  <span className="text-gray-400 ml-2 truncate">
-                    {page.description}
-                  </span>
-                )}
-                <div className="ml-auto flex-shrink-0 flex items-center gap-1">
-                  <button
-                    onClick={() => copyPageSource(page.slug)}
-                    disabled={copyStatus[page.slug] === 'copying'}
-                    className={`p-1 rounded transition-colors ${
-                      copyStatus[page.slug] === 'success' 
-                        ? 'text-green-400' 
-                        : copyStatus[page.slug] === 'error'
-                        ? 'text-red-400'
-                        : copyStatus[page.slug] === 'copying'
-                        ? 'text-gray-600'
-                        : 'text-gray-500 hover:text-green-400'
-                    }`}
-                    title={
-                      copyStatus[page.slug] === 'success' 
-                        ? 'Copied to clipboard!' 
-                        : copyStatus[page.slug] === 'error'
-                        ? 'Failed to copy'
-                        : copyStatus[page.slug] === 'copying'
-                        ? 'Copying...'
-                        : 'Copy source code'
-                    }
-                  >
-                    {copyStatus[page.slug] === 'copying' ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 animate-spin" viewBox="0 0 24 24" fill="none">
-                        <circle cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" className="opacity-25"></circle>
-                        <path fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" className="opacity-75"></path>
-                      </svg>
-                    ) : copyStatus[page.slug] === 'success' ? (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                      </svg>
-                    ) : (
-                      <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                        <path d="M8 3a1 1 0 011-1h2a1 1 0 110 2H9a1 1 0 01-1-1z" />
-                        <path d="M6 3a2 2 0 00-2 2v11a2 2 0 002 2h8a2 2 0 002-2V5a2 2 0 00-2-2 3 3 0 01-3 3H9a3 3 0 01-3-3z" />
-                      </svg>
-                    )}
-                  </button>
-                  <a 
-                    href={`/dash?edit=${page.slug}`}
-                    className="text-gray-500 hover:text-blue-400 p-1 rounded transition-colors"
-                    title="Edit"
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M17.414 2.586a2 2 0 00-2.828 0L7 10.172V13h2.828l7.586-7.586a2 2 0 000-2.828z" />
-                      <path fillRule="evenodd" d="M2 6a2 2 0 012-2h4a1 1 0 010 2H4v10h10v-4a1 1 0 112 0v4a2 2 0 01-2 2H4a2 2 0 01-2-2V6z" clipRule="evenodd" />
-                    </svg>
-                  </a>
-                </div>
-              </li>
-            ))
-          ) : (
-            <li className="px-4 py-8 text-center text-gray-400">
-              No pages found matching "{searchTerm}"
-            </li>
+    <section className="max-w-xl mx-auto">
+      <h2 className="text-2xl font-semibold text-white mb-6">Open a Page</h2>
+      <form onSubmit={handleSubmit} className="space-y-4 bg-gray-800 p-6 md:p-8 rounded-lg shadow-md border border-gray-700">
+        <div>
+          <label htmlFor="slug-entry" className="block text-sm font-bold text-gray-200 mb-1">Slug</label>
+          <input
+            id="slug-entry"
+            type="text"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            placeholder="my-page"
+            autoFocus
+            className="w-full p-3 border border-gray-600 bg-gray-700 text-gray-100 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition placeholder-gray-400"
+          />
+          {name && slug !== name && (
+            <p className="mt-2 text-xs text-gray-400">
+              Will be opened as: <span className="text-gray-200 font-mono">{slug}</span>
+            </p>
           )}
-        </ul>
-      </div>
+          {name && !slug && (
+            <p className="mt-2 text-xs text-red-400">Use at least one letter, number, dash, or underscore.</p>
+          )}
+          <p className="mt-2 text-xs text-gray-400">
+            Enter a known slug to create or edit that page.
+          </p>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <button
+            type="submit"
+            disabled={!slug}
+            className="bg-blue-600 text-white font-bold py-3 px-6 rounded-md hover:bg-blue-700 transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 focus:ring-offset-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            Open Editor
+          </button>
+          <Link to="/new" className="text-gray-300 hover:text-white font-medium">
+            Create by name
+          </Link>
+        </div>
+      </form>
     </section>
   );
 }
@@ -326,25 +193,6 @@ const LLM_INSTRUCTIONS_TEMPLATE = `Single-file React JSX component, plain JavaSc
 - localStorage = source of truth (load on mount, sync silently on change, no UI feedback).
 - Explicit **Save** / **Load** buttons for API. Show "Saving…" / "Saved ✓" / "Loading…" / error for API ops only.
 - Stateful apps (checklists, todos): also auto-save to API on each meaningful change so other users see it via Load.
-
-## Speech API — Google TTS + ElevenLabs STT (non-English only)
-### TTS — POST /api/tts
-\`\`\`js
-fetch('/api/tts', {
-  method: 'POST',
-  headers: {'content-type': 'application/json'},
-  body: JSON.stringify({text: 'שלום', lang: 'he'}) // lang: 'he' or 'es'
-}).then(r => r.blob()).then(b => new Audio(URL.createObjectURL(b)).play());
-\`\`\`
-- Max 100 chars. Returns audio/mpeg. Errors: 400 bad input, 413 too long, 429 rate limit, 502 upstream.
-
-### STT — POST /api/stt
-\`\`\`js
-const f = new FormData();
-f.append('audio', blob, 'rec.webm'); // max 200 KB (~10 s)
-f.append('language', 'he');          // 'he' or 'es'
-fetch('/api/stt', {method: 'POST', body: f}).then(r => r.json()); // {text, language_code}
-\`\`\`
 
 ## Self-check
 - [ ] One \`jsx\` block, correct first/last lines, no TypeScript.

@@ -23,35 +23,6 @@
 			"id": "d062b0b0275940cc998aea2b43342ddb"
 		}
 	],
-	"r2_buckets": [
-		{
-			"binding": "TTS_CACHE",
-			"bucket_name": "tts-cache",
-			"experimental_remote": true
-		}
-	],
-	"unsafe": {
-		"bindings": [
-			{
-				"name": "TTS_RATE_LIMIT",
-				"type": "ratelimit",
-				"namespace_id": "1001",
-				"simple": {
-					"limit": 10,
-					"period": 60
-				}
-			},
-			{
-				"name": "STT_RATE_LIMIT",
-				"type": "ratelimit",
-				"namespace_id": "1002",
-				"simple": {
-					"limit": 10,
-					"period": 60
-				}
-			}
-		]
-	},
 	/**
 	 * Smart Placement
 	 * Docs: https://developers.cloudflare.com/workers/configuration/smart-placement/#smart-placement

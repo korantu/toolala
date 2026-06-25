@@ -29,13 +29,6 @@ export interface StorageManager {
   getAccessTimestamp(slug: string): Promise<number | null>;
   setAccessTimestamp(slug: string, timestamp: number): Promise<void>;
   deleteAccessTimestamp(slug: string): Promise<void>;
-
-  // List operations
-  listContentSlugs(limit?: number): Promise<string[]>;
-  listMetaSlugs(limit?: number): Promise<string[]>;
-  listMetaWithDescriptions(limit?: number): Promise<Array<{ slug: string; description: string }>>;
-  listStateSlugs(limit?: number): Promise<string[]>;
-  listAccessTimestamps(limit?: number): Promise<Array<{ slug: string; timestamp: number }>>;
 }
 
 export class UnifiedStorageManager implements StorageManager {
@@ -131,42 +124,6 @@ export class UnifiedStorageManager implements StorageManager {
     await this.kv.delete(`accessedts:${slug}`);
   }
 
-  // List operations
-  async listContentSlugs(limit = 100): Promise<string[]> {
-    const list = await this.kv.list({ prefix: "content:", limit });
-    return list.keys.map(k => k.name.replace(/^content:/, ""));
-  }
-
-  async listMetaSlugs(limit = 100): Promise<string[]> {
-    const list = await this.kv.list({ prefix: "meta:", limit });
-    return list.keys.map(k => k.name.replace(/^meta:/, ""));
-  }
-
-  async listMetaWithDescriptions(limit = 100): Promise<Array<{ slug: string; description: string }>> {
-    const list = await this.kv.list<{ description: string }>({ prefix: "meta:", limit });
-    return list.keys.map(k => ({
-      slug: k.name.replace(/^meta:/, ""),
-      description: k.metadata?.description ?? "",
-    }));
-  }
-
-  async listStateSlugs(limit = 100): Promise<string[]> {
-    const list = await this.kv.list({ prefix: "state:", limit });
-    return list.keys.map(k => k.name.replace(/^state:/, ""));
-  }
-
-  async listAccessTimestamps(limit = 100): Promise<Array<{ slug: string; timestamp: number }>> {
-    const list = await this.kv.list<{ timestamp: number }>({ prefix: "accessedts:", limit });
-    const results: Array<{ slug: string; timestamp: number }> = [];
-    for (const key of list.keys) {
-      const slug = key.name.replace(/^accessedts:/, "");
-      // Use metadata if available (set by setAccessTimestamp), else fall back to value parse
-      if (key.metadata?.timestamp != null) {
-        results.push({ slug, timestamp: key.metadata.timestamp });
-      }
-    }
-    return results;
-  }
 }
 
 export function createStorageManager(env: { SPIKEME: KVNamespace }): StorageManager {

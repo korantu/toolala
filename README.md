@@ -1,367 +1,160 @@
 # SpikeMe
 
-SpikeMe is a lightweight content dashboard for Cloudflare Workers. It lets you author small HTML pages, store them in KV, and serve them instantly from edge routes such as `/about` or `/launch`. The root route (`/`) exposes a Remix-powered admin view where you can create, update, and preview pages without leaving the browser.
+[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/korantu/toolala)
+
+SpikeMe is a lightweight content dashboard for Cloudflare Workers. It lets you author small HTML or React pages, store them in KV, and serve them from edge routes such as `/about` or `/launch`.
 
 ## Key Features
-- **Edge-hosted micro CMS:** Author raw HTML along with a short description, and persist both to Cloudflare KV using the unified `SPIKEME` namespace with key prefixes.
-- **Instant routing:** Every saved slug becomes a public route handled by `app/routes/$slug.tsx`, returning the stored HTML with a `text/html` response.
-- **React snippet support:** Begin content with a React import/identifier and the worker will wrap it in a standalone document, injecting the render call into `#root` automatically.
-- **Admin dashboard:** `app/routes/_index.tsx` lists up to 300 existing pages, surfaces quick links, and provides a form for editing/creating entries.
-- **Page state management:** Each page can store and retrieve JSON data via `/slug/data` API endpoints for dynamic functionality.
-- **Worker-first tooling:** Remix Vite dev server, Wrangler deploys, and type-safe load contexts keep the stack familiar for Cloudflare developers.
-- **Unified storage:** Uses a single `SPIKEME` KV namespace with key prefixes (`content:`, `meta:`, `state:`) for simplified management and future extensibility.
 
-## Page State Management
+- **Edge-hosted micro CMS:** Author raw HTML or React snippets and persist them to the unified `SPIKEME` KV namespace.
+- **Known-slug editing:** Open `/dash`, enter a slug you already know, and create or edit that page. There is no page/repository listing or search UI.
+- **Instant routing:** Every saved slug becomes a public route handled by `app/routes/$slug.tsx`.
+- **React snippet support:** Content that starts with React imports or a Babel script tag is wrapped in a standalone React document.
+- **JSON state APIs:** Pages can store JSON through per-page state routes and the referrer-scoped `/api/json` shortcut.
+- **Worker-first tooling:** Remix, Vite, Wrangler, Bun, and Cloudflare KV are the primary development stack.
 
-SpikeMe includes a built-in API for pages to store and retrieve JSON state data. This enables dynamic functionality within static pages.
+## API Surface
 
-### API Endpoints
+### Page Content
 
-For any page at `/example/`, the following endpoints are available:
+- `GET /api/content/:slug` returns `{ "content": "..." }` for an existing page.
+- `POST /api/page/:slug` updates an existing page's content.
+- `GET /:slug` serves a saved page as HTML.
+- `GET /:slug/edit` redirects to `/dash?edit=:slug`.
 
-- **GET `/example/data`** - Retrieve stored JSON data for the page
-- **POST `/example/data`** - Store JSON data for the page  
-- **DELETE `/example/data`** - Remove stored data for the page
+`POST /api/page/:slug` accepts:
 
-### Usage Example
+```json
+{
+  "content": "<h1>Updated content</h1>"
+}
+```
+
+Responses:
+
+- `200` `{ "success": true }`
+- `400` invalid JSON or missing non-empty `content`
+- `404` page does not exist
+- `405` wrong method
+- `500` storage failure
+
+### Per-Page State
+
+For any saved page at `/example`, these routes are available:
+
+- `GET /example/data` returns stored JSON or `{}`
+- `POST /example/data` stores the JSON request body
+- `DELETE /example/data` removes stored state
+
+Example:
 
 ```html
 <script>
 async function saveData() {
-  const data = { message: 'Hello World!', timestamp: new Date().toISOString() };
-  const response = await fetch('/my-page/data', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(data)
+  await fetch("/my-page/data", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ message: "Hello" })
   });
-  const result = await response.json(); // { success: true }
 }
 
 async function loadData() {
-  const response = await fetch('/my-page/data');
-  const data = await response.json(); // Returns stored data or {}
-}
-
-async function deleteData() {
-  const response = await fetch('/my-page/data', { method: 'DELETE' });
-  const result = await response.json(); // { success: true }
+  return await fetch("/my-page/data").then((response) => response.json());
 }
 </script>
 ```
 
-State data is stored in the unified `SPIKEME` KV namespace with the `state:` prefix and is isolated per page slug.
+### Referrer-Scoped JSON Storage
 
-## Page Update API
+Use `GET` and `POST` with `/api/json/:path?` or `/api/v1/json_data/:path?`.
 
-To update an existing page's HTML content, send a `POST` request to `/api/page/{slug}` with a JSON body containing the new `content`. The server returns `404` if the page does not exist, so you can only update pages that have already been created through the admin dashboard.
-
-### Endpoint
-
-**`POST /api/page/{slug}`**
-
-| Field | Type | Required | Description |
-|-------|------|----------|-------------|
-| `content` | string | yes | New HTML (or React snippet) to replace the page |
-
-### Response codes
-
-| Status | Meaning |
-|--------|---------|
-| `200` | Page updated successfully — `{ "success": true }` |
-| `400` | Missing or invalid `content`, or bad JSON body |
-| `404` | Page does not exist; create it first via the dashboard |
-| `405` | Wrong HTTP method (only POST is accepted) |
-| `500` | Storage error |
-
-### Example
-
-```bash
-curl -X POST https://your-worker.workers.dev/api/page/about \
-  -H "Content-Type: application/json" \
-  -d '{"content": "<h1>About Us</h1><p>Updated content.</p>"}'
-# 200 → { "success": true }
-
-curl -X POST https://your-worker.workers.dev/api/page/no-such-page \
-  -H "Content-Type: application/json" \
-  -d '{"content": "<h1>Hello</h1>"}'
-# 404 → { "error": "Page not found" }
-```
+Data is scoped by `Referer`, falling back to `Origin`, then `"unknown"`. Values are stored in `SPIKEME` using keys like `apiv1json:<referrer>:<path>`.
 
 ```javascript
-const response = await fetch('/api/page/about', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({ content: '<h1>About Us</h1><p>Updated content.</p>' }),
+await fetch("/api/json/preferences", {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ theme: "dark" })
 });
-const result = await response.json(); // { success: true }
+
+const prefs = await fetch("/api/json/preferences").then((response) => response.json());
 ```
 
----
+Limits:
 
-## JSON Data Storage API
-
-SpikeMe provides a referrer-scoped JSON storage API that allows client-side applications to store and retrieve JSON data based on the requesting page's URL. This is ideal for client-side state persistence, caching, or simple data storage without requiring database setup.
-
-### Overview
-
-The `/api/v1/json_data` endpoint provides KV-backed JSON storage where data is automatically scoped by:
-- **Referrer URL**: Data is isolated by the `Referer` header (falls back to `Origin`, then `"unknown"`)
-- **Path**: Optional path parameter for organizing data within a referrer scope
-
-**Key Format**: `apiv1json:<referrer>:<path>`
-
-**Example Keys**:
-- From `Referer: https://example.com/page.html` with path `/user/settings` → `apiv1json:https://example.com/page.html:user/settings`
-- From `Referer: https://app.com` with no path → `apiv1json:https://app.com:`
-
-### API Endpoints
-
-#### GET `/api/v1/json_data/{path?}`
-
-Retrieve JSON data from storage.
-
-**Response**:
-- **200 OK**: Returns the stored JSON object directly, or `{}` if not found
-- **400 Bad Request**: Invalid path (e.g., contains `..`)
-- **500 Internal Server Error**: KV read failure
-
-**Example**:
-```javascript
-// Retrieve data
-const response = await fetch('/api/v1/json_data/my/data');
-const data = await response.json();
-console.log(data || {}); // Stored data or empty object
-```
-
-#### POST `/api/v1/json_data/{path?}`
-
-Store JSON data to storage.
-
-**Request Body**: Valid JSON object to store
-
-**Response**:
-- **201 Created**: Returns `{ "status": "stored", "key": "<constructed_key>" }`
-- **400 Bad Request**: Invalid JSON or invalid path
-- **413 Payload Too Large**: Data exceeds 1 MB limit
-- **429 Too Many Requests**: Rate limit exceeded
-- **500 Internal Server Error**: KV write failure
-
-**Example**:
-```javascript
-// Store data
-const data = { key: 'value', nested: { data: 123 } };
-const response = await fetch('/api/v1/json_data/my/data', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify(data)
-});
-const result = await response.json();
-console.log(result); // { status: 'stored', key: 'apiv1json:...' }
-```
-
-### cURL Examples
-
-```bash
-# GET - Retrieve data (replace with actual Referer)
-curl -H "Referer: https://example.com/page.html" \
-  https://your-worker.workers.dev/api/v1/json_data/my/data
-
-# POST - Store data
-curl -X POST \
-  -H "Referer: https://example.com/page.html" \
-  -H "Content-Type: application/json" \
-  -d '{"message":"Hello World","count":42}' \
-  https://your-worker.workers.dev/api/v1/json_data/my/data
-```
-
-### Client-Side Usage
-
-```html
-<script>
-// Simple client-side storage example
-async function saveUserPreferences() {
-  const prefs = { theme: 'dark', language: 'en' };
-  const response = await fetch('/api/v1/json_data/preferences', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(prefs)
-  });
-  const result = await response.json();
-  console.log('Saved:', result.status); // 'stored'
-}
-
-async function loadUserPreferences() {
-  const response = await fetch('/api/v1/json_data/preferences');
-  const data = await response.json();
-  return Object.keys(data).length > 0 ? data : { theme: 'light', language: 'en' }; // Defaults if empty
-}
-</script>
-```
-
-### Features & Limitations
-
-**Features**:
-- Automatic referrer-based scoping (data isolated by originating page)
-- Optional path segments for organizing data
-- CORS enabled for cross-origin requests
-- No authentication required (public endpoint)
-- Data persists indefinitely (no automatic TTL)
-
-**Limitations**:
-- Maximum value size: 1 MB per key
+- Maximum value size: 1 MB
 - Maximum key size: 512 bytes
-- KV rate limits apply (check Cloudflare KV documentation)
-- Path validation: no `..` (directory traversal), leading/trailing slashes normalized
-- Data is scoped per exact referrer URL (including path and domain)
+- Path values may not contain `..`
+- Public endpoint; do not store sensitive data
 
-### Use Cases
+## LLM Component Instructions
 
-- **Client-side caching**: Cache API responses or computed data
-- **User preferences**: Store theme, language, or UI settings
-- **Form data**: Persist form progress across sessions
-- **Simple state management**: Store application state without backend setup
-- **Cross-tab communication**: Share data between tabs from same origin
+The dashboard can copy instructions for generating single-file React JSX components. Those generated components should use:
 
-**Note**: Since this is a public endpoint, do not store sensitive data. Consider adding authentication for production use cases requiring security.
+- React and Tailwind only, loaded by the saved page wrapper
+- No TypeScript, external packages, or separate files
+- `GET/POST /api/json{{OptionalSubpath}}` for shared JSON storage
+- `localStorage` for silent local persistence
+- Explicit Save/Load controls for API operations
 
----
-
-## Speech API
-
-**Only for non-English.** Use the browser's built-in `SpeechSynthesis` / `SpeechRecognition` for English — these endpoints exist specifically for languages where browser TTS/STT is unreliable, primarily **Hebrew (`he`) and Spanish (`es`)**.
-
----
-
-### `POST /api/tts` — Text to Speech
-
-**Request** (`application/json`):
-
-```json
-{
-  "text": "אני רוצה מים",
-  "lang": "he"
-}
-```
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `text` | string | yes | Max **100 characters** after whitespace normalization |
-| `lang` | string | yes | `"he"` for Hebrew, `"es"` for Spanish (BCP-47 accepted: `"he-IL"`, `"es-ES"`, etc.) |
-
-**Response**: `audio/mpeg` binary — play directly as a blob URL.
-
-**Status codes**:
-
-| Code | Meaning | Action |
-|------|---------|--------|
-| `200` | MP3 audio | Play it |
-| `400` | `bad_request` or `empty_text` | Fix the input |
-| `413` | `text_too_long` | Shorten to ≤ 100 chars |
-| `429` | `rate_limited` | Wait and retry |
-| `502` | `elevenlabs_failed` | Upstream error, retry later |
-
-**Minimal JS**:
-```javascript
-fetch('/api/tts', {
-  method: 'POST',
-  headers: {'content-type': 'application/json'},
-  body: JSON.stringify({text: 'אני רוצה מים', lang: 'he'})
-})
-  .then(r => { if (!r.ok) throw r; return r.blob(); })
-  .then(blob => new Audio(URL.createObjectURL(blob)).play());
-```
-
-Cached forever in R2 after first generation. Second call with same text + lang returns instantly with `X-TTS-Cache: hit`.
-
----
-
-### `POST /api/stt` — Speech to Text
-
-**Request** (`multipart/form-data`):
-
-| Field | Type | Required | Notes |
-|-------|------|----------|-------|
-| `audio` | File/Blob | yes | WebM, MP3, WAV, M4A. Max **200 KB** (≈ 10 seconds) |
-| `language` | string | yes | `"he"` or `"es"` only |
-
-**Response** (`application/json`):
-```json
-{"text": "אני רוצה מים", "language_code": "he"}
-```
-
-**Status codes**: same as TTS, plus `413` for audio exceeding 200 KB.
-
-**Minimal JS**:
-```javascript
-const form = new FormData();
-form.append('audio', audioBlob, 'recording.webm');
-form.append('language', 'he');
-fetch('/api/stt', {method: 'POST', body: form})
-  .then(r => { if (!r.ok) throw r; return r.json(); })
-  .then(({text}) => console.log(text));
-```
-
-No caching. Rate-limited to **10 transcriptions per minute** globally.
-
----
-
-### Setup
-
-Set the ElevenLabs API key as a Worker secret (one-time):
-```bash
-wrangler secret put ELEVENLABS_API_KEY
-wrangler r2 bucket create tts-cache
-```
-
-**Recommended:** In ElevenLabs dashboard, set a low monthly character limit on this API key to cap damage from bugs.
-
----
+Voice APIs are not available in this app.
 
 ## Storage Architecture
 
-SpikeMe uses a unified KV namespace for simple and efficient data management:
+SpikeMe uses one Cloudflare KV namespace:
 
-- **SPIKEME namespace**: Single KV namespace using key prefixes for different data types:
-  - `content:<slug>` - Page HTML content
-  - `meta:<slug>` - Page metadata like title and description  
-  - `state:<slug>` - Page state data for dynamic functionality
-
-This unified approach reduces complexity and allows for easy addition of new data types without creating additional namespaces.
+- `content:<slug>` stores page HTML or React source
+- `meta:<slug>` stores page metadata
+- `state:<slug>` stores per-page JSON state
+- `ref:<slug>` stores an optional reference version
+- `accessedts:<slug>` stores the last page access timestamp
 
 ## Getting Started
-1. Install dependencies:
-   ```bash
-   npm install
-   ```
-2. Create the SPIKEME KV namespace and bind it in `wrangler.jsonc`:
-   ```bash
-   npx wrangler kv namespace create SPIKEME
-   ```
-   Add the generated ID to your `wrangler.jsonc` under the `SPIKEME` binding.
-3. Generate Worker binding types whenever bindings change:
-   ```bash
-   npm run cf-typegen
-   ```
-4. Launch the local dev server:
-   ```bash
-   npm run dev
-   ```
-   This runs Remix on Vite with Wrangler’s dev proxy so route loaders/actions receive Worker bindings.
 
+Install dependencies:
+
+```bash
+bun install
+```
+
+Create the `SPIKEME` KV namespace and bind it in `wrangler.jsonc`:
+
+```bash
+bunx wrangler kv namespace create SPIKEME
+```
+
+Generate Worker binding types whenever `wrangler.jsonc` bindings change:
+
+```bash
+bun run cf-typegen
+```
+
+Start local development:
+
+```bash
+bun run dev
+```
+
+Open `/dash`, enter a known slug, and save the page.
 
 ## Development Workflow
-- `npm run lint` / `npm run typecheck` keep ESLint and TypeScript clean before committing.
-- `npm run test` executes Vitest specs under `test/` using Cloudflare’s worker pool configuration.
-- `npm run build` emits the production bundle into `build/`, which `server.ts` uses inside the worker runtime.
-- `npm run preview` rebuilds and runs a Wrangler dev session against the compiled output for staging checks.
+
+- `bun run lint` checks ESLint.
+- `bun run typecheck` checks TypeScript.
+- `bun run test` runs Vitest.
+- `bun run build` emits the production Remix bundle into `build/`.
+- `bun run preview` builds and starts Wrangler locally against the compiled output.
+- `bun run check` runs typecheck, build, and a dry-run deploy.
 
 ## Deployment
-Run a dry-run deploy before shipping:
+
+Use the Deploy to Cloudflare button at the top of this README for one-click setup from the known GitHub repository URL.
+
+For local deployment:
+
 ```bash
-npm run check
+bun run check
+bun run deploy
 ```
-If it passes, push the latest KV schema notes and publish with:
-```bash
-npm run deploy
-```
-Deployments rely on the bindings defined in `wrangler.jsonc`; ensure any new namespaces or secrets are committed alongside README updates.
+
+Deployments rely on `wrangler.jsonc`; keep binding changes and generated types in sync.

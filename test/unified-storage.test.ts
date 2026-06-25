@@ -60,18 +60,6 @@ describe("Unified Storage Manager", () => {
       expect(retrieved).toBeNull();
     });
 
-    it("should list content slugs", async () => {
-      const mockKV = createMockKV();
-      const storage = new UnifiedStorageManager(mockKV);
-      
-      await storage.setContent("page1", "<h1>Page 1</h1>");
-      await storage.setContent("page2", "<h1>Page 2</h1>");
-      await storage.setMeta("page1", { description: "Meta for page 1" }); // This shouldn't appear in content list
-      
-      const slugs = await storage.listContentSlugs();
-      
-      expect(slugs).toEqual(["page1", "page2"]);
-    });
   });
 
   describe("Meta Operations", () => {
@@ -118,18 +106,6 @@ describe("Unified Storage Manager", () => {
       expect(retrieved).toBeNull();
     });
 
-    it("should list meta slugs", async () => {
-      const mockKV = createMockKV();
-      const storage = new UnifiedStorageManager(mockKV);
-      
-      await storage.setMeta("page1", { description: "Page 1" });
-      await storage.setMeta("page2", { description: "Page 2" });
-      await storage.setContent("page1", "<h1>Content</h1>"); // This shouldn't appear in meta list
-      
-      const slugs = await storage.listMetaSlugs();
-      
-      expect(slugs).toEqual(["page1", "page2"]);
-    });
   });
 
   describe("State Operations", () => {
@@ -176,18 +152,6 @@ describe("Unified Storage Manager", () => {
       expect(retrieved).toBeNull();
     });
 
-    it("should list state slugs", async () => {
-      const mockKV = createMockKV();
-      const storage = new UnifiedStorageManager(mockKV);
-      
-      await storage.setState("page1", { data: "State 1" });
-      await storage.setState("page2", { data: "State 2" });
-      await storage.setContent("page1", "<h1>Content</h1>"); // This shouldn't appear in state list
-      
-      const slugs = await storage.listStateSlugs();
-      
-      expect(slugs).toEqual(["page1", "page2"]);
-    });
   });
 
   describe("Factory Function", () => {
