@@ -5,7 +5,7 @@ import { loader } from "../app/routes/$slug.edit";
 const createMockContext = (pageExists: boolean) => ({
   cloudflare: {
     env: {
-      SPIKEME: {
+      TOOLALA: {
         get: async (key: string) => {
           if (key.startsWith("content:") && pageExists) {
             return "<h1>Test Content</h1>";

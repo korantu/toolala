@@ -27,7 +27,7 @@ const createMockKV = () => {
 const createMockContext = (kv: any) => ({
   cloudflare: {
     env: {
-      SPIKEME: kv,
+      TOOLALA: kv,
     },
   },
 } as any);

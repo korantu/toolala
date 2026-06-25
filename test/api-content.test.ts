@@ -5,7 +5,7 @@ import { loader } from "../app/routes/api.content.$slug";
 const createMockContext = (content: string | null) => ({
   cloudflare: {
     env: {
-      SPIKEME: {
+      TOOLALA: {
         get: async (key: string) => {
           if (key.startsWith("content:") && content !== null) {
             return content;

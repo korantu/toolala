@@ -115,7 +115,7 @@ export async function loader({ params, context, request }: LoaderFunctionArgs) {
   }
 
   // Retrieve from KV
-  const kv = context.cloudflare.env.SPIKEME;
+  const kv = context.cloudflare.env.TOOLALA;
   try {
     const value = await kv.get(key);
     
@@ -204,7 +204,7 @@ export async function action({ params, context, request }: ActionFunctionArgs) {
   }
 
   // Store in KV
-  const kv = context.cloudflare.env.SPIKEME;
+  const kv = context.cloudflare.env.TOOLALA;
   try {
     await kv.put(key, valueStr);
     

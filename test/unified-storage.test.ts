@@ -155,9 +155,9 @@ describe("Unified Storage Manager", () => {
   });
 
   describe("Factory Function", () => {
-    it("should create a UnifiedStorageManager when SPIKEME is provided", () => {
+    it("should create a UnifiedStorageManager when TOOLALA is provided", () => {
       const mockKV = createMockKV();
-      const storage = createStorageManager({ SPIKEME: mockKV });
+      const storage = createStorageManager({ TOOLALA: mockKV });
       
       expect(storage).toBeInstanceOf(UnifiedStorageManager);
     });

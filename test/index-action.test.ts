@@ -5,7 +5,7 @@ import { action } from "../app/routes/dash";
 const createMockContext = () => ({
   cloudflare: {
     env: {
-      SPIKEME: {
+      TOOLALA: {
         put: async (_key: string, _value: string) => {
           // Mock successful storage
         },

@@ -1,5 +1,5 @@
 /**
- * Storage utilities for the unified SPIKEME KV namespace.
+ * Storage utilities for the unified TOOLALA KV namespace.
  * This module provides a clean interface for storing different types of data
  * using key prefixes to replace the separate PAGE_CONTENT, PAGE_META, and PAGE_STATE namespaces.
  */
@@ -126,6 +126,6 @@ export class UnifiedStorageManager implements StorageManager {
 
 }
 
-export function createStorageManager(env: { SPIKEME: KVNamespace }): StorageManager {
-  return new UnifiedStorageManager(env.SPIKEME);
+export function createStorageManager(env: { TOOLALA: KVNamespace }): StorageManager {
+  return new UnifiedStorageManager(env.TOOLALA);
 }

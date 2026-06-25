@@ -16,7 +16,7 @@ const createMockKV = (): any => {
 const createMockContext = () => ({
   cloudflare: {
     env: {
-      SPIKEME: createMockKV(),
+      TOOLALA: createMockKV(),
     },
   },
 } as any);
@@ -35,7 +35,7 @@ describe("State Management", () => {
   describe("StateManager", () => {
     it("should store and retrieve JSON data", async () => {
       const mockKV = createMockKV();
-      const stateManager = createStateManager({ SPIKEME: mockKV });
+      const stateManager = createStateManager({ TOOLALA: mockKV });
       const testData = { message: "Hello, World!", count: 42 };
       
       await stateManager.set("test-page", testData);
@@ -46,7 +46,7 @@ describe("State Management", () => {
 
     it("should return null for non-existent data", async () => {
       const mockKV = createMockKV();
-      const stateManager = createStateManager({ SPIKEME: mockKV });
+      const stateManager = createStateManager({ TOOLALA: mockKV });
       const retrieved = await stateManager.get("nonexistent-page");
       
       expect(retrieved).toBeNull();
@@ -54,7 +54,7 @@ describe("State Management", () => {
 
     it("should delete data", async () => {
       const mockKV = createMockKV();
-      const stateManager = createStateManager({ SPIKEME: mockKV });
+      const stateManager = createStateManager({ TOOLALA: mockKV });
       const testData = { test: true };
       
       await stateManager.set("test-page", testData);
@@ -69,11 +69,11 @@ describe("State Management", () => {
     it("should handle GET requests", async () => {
       const params = { slug: "test-page" };
       const mockKV = createMockKV();
-      const context = { cloudflare: { env: { SPIKEME: mockKV } } };
+      const context = { cloudflare: { env: { TOOLALA: mockKV } } };
       const request = createMockRequest("GET");
       
       // First, store some data
-      const stateManager = createStateManager({ SPIKEME: mockKV });
+      const stateManager = createStateManager({ TOOLALA: mockKV });
       await stateManager.set("test-page", { greeting: "Hello" });
       
       const response = await loader({ params, context, request } as any);
@@ -96,7 +96,7 @@ describe("State Management", () => {
     it("should handle POST requests", async () => {
       const params = { slug: "test-page" };
       const mockKV = createMockKV();
-      const context = { cloudflare: { env: { SPIKEME: mockKV } } };
+      const context = { cloudflare: { env: { TOOLALA: mockKV } } };
       const testData = { name: "Test", value: 123 };
       const request = createMockRequest("POST", testData);
       
@@ -106,7 +106,7 @@ describe("State Management", () => {
       expect(result).toEqual({ success: true });
       
       // Verify data was stored
-      const stateManager = createStateManager({ SPIKEME: mockKV });
+      const stateManager = createStateManager({ TOOLALA: mockKV });
       const stored = await stateManager.get("test-page");
       expect(stored).toEqual(testData);
     });
@@ -114,10 +114,10 @@ describe("State Management", () => {
     it("should handle DELETE requests", async () => {
       const params = { slug: "test-page" };
       const mockKV = createMockKV();
-      const context = { cloudflare: { env: { SPIKEME: mockKV } } };
+      const context = { cloudflare: { env: { TOOLALA: mockKV } } };
       
       // First, store some data
-      const stateManager = createStateManager({ SPIKEME: mockKV });
+      const stateManager = createStateManager({ TOOLALA: mockKV });
       await stateManager.set("test-page", { toDelete: true });
       
       const request = createMockRequest("DELETE");

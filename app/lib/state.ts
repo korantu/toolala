@@ -1,6 +1,6 @@
 /**
  * State management utilities for page data.
- * This module handles storing and retrieving JSON data for pages using the unified SPIKEME namespace.
+ * This module handles storing and retrieving JSON data for pages using the unified TOOLALA namespace.
  */
 
 export interface StateManager {
@@ -33,6 +33,6 @@ export class UnifiedStateManager implements StateManager {
   }
 }
 
-export function createStateManager(env: { SPIKEME: KVNamespace }): StateManager {
-  return new UnifiedStateManager(env.SPIKEME);
+export function createStateManager(env: { TOOLALA: KVNamespace }): StateManager {
+  return new UnifiedStateManager(env.TOOLALA);
 }

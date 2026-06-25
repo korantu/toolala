@@ -3,7 +3,7 @@
 // Runtime types generated with workerd@1.20250712.0 2025-04-01 nodejs_compat
 declare namespace Cloudflare {
 	interface Env {
-		SPIKEME: KVNamespace;
+		TOOLALA: KVNamespace;
 	}
 }
 interface Env extends Cloudflare.Env {}

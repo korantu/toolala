@@ -1,12 +1,12 @@
-# SpikeMe
+# Toolala
 
 [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/korantu/toolala)
 
-SpikeMe is a lightweight content dashboard for Cloudflare Workers. It lets you author small HTML or React pages, store them in KV, and serve them from edge routes such as `/about` or `/launch`.
+Toolala is a lightweight content dashboard for Cloudflare Workers. It lets you author small HTML or React pages, store them in KV, and serve them from edge routes such as `/about` or `/launch`.
 
 ## Key Features
 
-- **Edge-hosted micro CMS:** Author raw HTML or React snippets and persist them to the unified `SPIKEME` KV namespace.
+- **Edge-hosted micro CMS:** Author raw HTML or React snippets and persist them to the unified `TOOLALA` KV namespace.
 - **Known-slug editing:** Open `/dash`, enter a slug you already know, and create or edit that page. There is no page/repository listing or search UI.
 - **Instant routing:** Every saved slug becomes a public route handled by `app/routes/$slug.tsx`.
 - **React snippet support:** Content that starts with React imports or a Babel script tag is wrapped in a standalone React document.
@@ -68,7 +68,7 @@ async function loadData() {
 
 Use `GET` and `POST` with `/api/json/:path?` or `/api/v1/json_data/:path?`.
 
-Data is scoped by `Referer`, falling back to `Origin`, then `"unknown"`. Values are stored in `SPIKEME` using keys like `apiv1json:<referrer>:<path>`.
+Data is scoped by `Referer`, falling back to `Origin`, then `"unknown"`. Values are stored in `TOOLALA` using keys like `apiv1json:<referrer>:<path>`.
 
 ```javascript
 await fetch("/api/json/preferences", {
@@ -101,7 +101,7 @@ Voice APIs are not available in this app.
 
 ## Storage Architecture
 
-SpikeMe uses one Cloudflare KV namespace:
+Toolala uses one Cloudflare KV namespace:
 
 - `content:<slug>` stores page HTML or React source
 - `meta:<slug>` stores page metadata
@@ -117,10 +117,10 @@ Install dependencies:
 bun install
 ```
 
-Create the `SPIKEME` KV namespace and bind it in `wrangler.jsonc`:
+Create the `TOOLALA` KV namespace and bind it in `wrangler.jsonc`:
 
 ```bash
-bunx wrangler kv namespace create SPIKEME
+bunx wrangler kv namespace create TOOLALA
 ```
 
 Generate Worker binding types whenever `wrangler.jsonc` bindings change:

@@ -1,3 +1,3 @@
 interface Env {
-  SPIKEME: KVNamespace;
+  TOOLALA: KVNamespace;
 }

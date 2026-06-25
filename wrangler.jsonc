@@ -4,7 +4,7 @@
  */
 {
 	"$schema": "./node_modules/wrangler/config-schema.json",
-	"name": "spikeme",
+	"name": "toolala",
 	"compatibility_date": "2025-04-01",
 	"upload_source_maps": true,
 	"main": "./server.ts",
@@ -19,7 +19,7 @@
 	},
 	"kv_namespaces": [
 		{
-			"binding": "SPIKEME",
+			"binding": "TOOLALA",
 			"id": "d062b0b0275940cc998aea2b43342ddb"
 		}
 	],

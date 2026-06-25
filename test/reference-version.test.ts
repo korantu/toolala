@@ -5,7 +5,7 @@ import { action, loader } from "../app/routes/dash";
 const createMockContext = (kvData: Map<string, string>) => ({
   cloudflare: {
     env: {
-      SPIKEME: {
+      TOOLALA: {
         get: async (key: string) => {
           return kvData.get(key) || null;
         },
@@ -34,7 +34,7 @@ describe("Reference version functionality", () => {
     const context = {
       cloudflare: {
         env: {
-          SPIKEME: {
+          TOOLALA: {
             get: async () => {
               throw new Error("get should not be called without an edit slug");
             },
